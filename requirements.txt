@@ -1,0 +1,7 @@
+xlwings>=0.30.0
+openpyxl>=3.1.0
+pdfplumber>=0.10.0
+pandas>=2.0.0
+numpy>=1.24.0
+PyQt6>=6.5.0
+qfluentwidgets>=1.5.0
