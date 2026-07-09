@@ -580,9 +580,7 @@ class MenuCard(CardWidget):
 
 # ─── Pantalla principal (menú) ────────────────────────────────────────
 class PantallaMenu(QWidget):
-    def mostrar_configuracion(self):
-        dialogo = DialogoConfiguracion(self)
-        dialogo.exec()
+
     def __init__(self, on_nuevo, on_actualizar, on_revisar, toggle_tema):
         super().__init__()
         self.toggle_tema = toggle_tema
@@ -1235,18 +1233,15 @@ class VentanaPrincipal(FluentWindow):
         self.pantalla_revisar = PantallaFlujo("revisar", on_volver=lambda: self.switchTo(self.pantalla_menu))
         self.pantalla_revisar.setObjectName("PantallaRevisar")
 
+        self.pantalla_config = PantallaConfiguracion()
+
         self.addSubInterface(self.pantalla_menu, FluentIcon.HOME, 'Inicio')
         self.addSubInterface(self.pantalla_nuevo, FluentIcon.ADD, 'Nuevo Reporte')
         self.addSubInterface(self.pantalla_actualizar, FluentIcon.UPDATE, 'Actualizar Reporte')
         self.addSubInterface(self.pantalla_revisar, FluentIcon.SEARCH, 'Revisar Desviaciones')
 
-        self.navigationInterface.addItem(
-            routeKey='Configuracion',
-            icon=FluentIcon.SETTING,
-            text='Configuración',
-            onClick=self.mostrar_configuracion,
-            position=NavigationItemPosition.BOTTOM
-        )
+        # Add to the bottom of the navigation rail
+        self.addSubInterface(self.pantalla_config, FluentIcon.SETTING, 'Configuración', position=NavigationItemPosition.BOTTOM)
 
         # Atajos de teclado
         QShortcut(QKeySequence("Ctrl+1"), self, lambda: self._ir_a("nuevo"))
@@ -1280,9 +1275,7 @@ class VentanaPrincipal(FluentWindow):
     def switchTo(self, interface):
         self.stackedWidget.setCurrentWidget(interface)
 
-    def mostrar_configuracion(self):
-        dialogo = DialogoConfiguracion(self)
-        dialogo.exec()
+
 
     def _ir_a_menu(self):
         self.switchTo(self.pantalla_menu)
@@ -1344,50 +1337,62 @@ def main():
     ventana.show()
     sys.exit(app.exec())
 
-class DialogoConfiguracion(QDialog):
-    """Diálogo modal para ajustes globales de la aplicación."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Configuración")
-        self.setMinimumWidth(450)
-        self.setModal(True)
+class PantallaConfiguracion(QWidget):
+    """Pantalla para ajustes globales de la aplicación."""
+    def __init__(self):
+        super().__init__()
+        self.setObjectName("PantallaConfiguracion")
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(16)
+        layout.setContentsMargins(44, 38, 44, 36)
+        layout.setSpacing(24)
 
         # Título
-        titulo = QLabel("Configuración global")
-        titulo.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        titulo = make_label("Configuración", size=24, weight=700)
         layout.addWidget(titulo)
 
-        # Sección: Palabras de descarte
-        lbl_desc = QLabel(
-            "Palabras a descartar en nombres de PDF\n"
-            "(separadas por coma, sin espacios extra):"
-        )
-        lbl_desc.setFont(QFont("Segoe UI", 10))
+        # Card de Configuración
+        card = CardWidget()
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(24, 24, 24, 24)
+        card_layout.setSpacing(16)
+
+        lbl_desc = make_label("Palabras a descartar en nombres de PDF", size=14, weight=600)
+        lbl_sub = make_label("Separadas por coma, sin espacios extra.", size=11, css_class="text-muted")
+
         self.descarte_input = LineEdit()
         self.descarte_input.setText(config.obtener_palabras_descarte_texto())
         self.descarte_input.setPlaceholderText("ej. prueba, limpieza, xxx")
+        self.descarte_input.setFixedWidth(400)
 
-        # Layout en formulario
-        form = QFormLayout()
-        form.addRow(lbl_desc, self.descarte_input)
-        layout.addLayout(form)
+        card_layout.addWidget(lbl_desc)
+        card_layout.addWidget(lbl_sub)
+        card_layout.addSpacing(8)
+        card_layout.addWidget(self.descarte_input)
 
+        # Botón de guardado
+        self.btn_guardar = PrimaryPushButton("Guardar Cambios")
+        self.btn_guardar.setFixedWidth(160)
+        self.btn_guardar.clicked.connect(self.guardar_cambios)
+
+        card_layout.addSpacing(16)
+        card_layout.addWidget(self.btn_guardar)
+
+        layout.addWidget(card)
         layout.addStretch()
 
-        # Botones
-        botones = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        botones.accepted.connect(self.guardar_y_cerrar)
-        botones.rejected.connect(self.reject)
-        layout.addWidget(botones)
-
-    def guardar_y_cerrar(self):
+    def guardar_cambios(self):
         config.guardar_palabras_descarte(self.descarte_input.text())
-        self.accept()
+        # Show toast from the parent window if needed
+        InfoBar.success(
+            title='Guardado exitoso',
+            content="La configuración ha sido actualizada.",
+            orient=Qt.Orientation.Horizontal,
+            isClosable=True,
+            position=InfoBarPosition.TOP_RIGHT,
+            duration=3000,
+            parent=self.window()
+        )
 
 if __name__ == "__main__":
     main()
