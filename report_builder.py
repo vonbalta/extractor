@@ -19,7 +19,6 @@ import logging
 from datetime import datetime, date
 
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-import config
 from openpyxl.utils import get_column_letter
 
 from pdf_extractor import MARCAS_AL_FINAL
@@ -129,38 +128,21 @@ def recolectar_desviaciones(wb_opx, evento_cancelacion=None,
         descripciones = []
         horas_desv    = []
 
-        formato_texto = config.obtener_formato_texto_desviaciones()
         for ent in entradas:
             ocs = ent["ocurrencias"]
             if len(ocs) == 1:
-                # Ocurrencia única
+                # Ocurrencia única: oración con lecturas en línea; hora aparte.
                 oc = ocs[0]
-                if formato_texto == "separado":
-                    descripciones.append(ent["header"])
-                    horas_desv.append(oc["hora_corta"])
-                else:
-                    descripciones.append(oc.get("oracion", ent["header"]))
-                    horas_desv.append(oc["hora_corta"])
+                descripciones.append(oc.get("oracion", ent["header"]))
+                horas_desv.append(oc["hora_corta"])
             else:
-                # Ocurrencia repetida
+                # Ocurrencia repetida: encabezado + una línea por hora/lectura.
                 if ent["con_lecturas"]:
-                    if formato_texto == "separado":
-                        descripciones.append(ent["header"])
-                        lineas = [f"{oc['hora_corta']}" for oc in ocs]
-                        horas_desv.append("\n".join(lineas))
-                    else:
-                        lineas = [f"{oc['hora_corta']} {oc['lecturas']}" for oc in ocs]
-                        descripciones.append(ent["header"] + "\n" + "\n".join(lineas))
-                        horas_desv.append("")
+                    lineas = [f"{oc['hora_corta']} {oc['lecturas']}" for oc in ocs]
                 else:
-                    if formato_texto == "separado":
-                        descripciones.append(ent["header"])
-                        lineas = [oc["hora_corta"] for oc in ocs]
-                        horas_desv.append("\n".join(lineas))
-                    else:
-                        lineas = [oc["hora_corta"] for oc in ocs]
-                        descripciones.append(ent["header"] + "\n" + "\n".join(lineas))
-                        horas_desv.append("")
+                    lineas = [oc["hora_corta"] for oc in ocs]
+                descripciones.append(ent["header"] + "\n" + "\n".join(lineas))
+                horas_desv.append("")
 
         # — Extraer metadatos del nombre de hoja —
         match_num     = PATRON_HOJA_NUM.match(ws_name)

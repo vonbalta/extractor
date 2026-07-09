@@ -17,6 +17,7 @@ from datetime import datetime, time as dtime
 
 import numpy as np
 import pandas as pd
+import config
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -121,7 +122,7 @@ def _fmt_temp(val):
 # ---------------------------------------------------------------------------
 
 def leer_filas_hoja(ws_opx):
-    """ 
+    """
     Devuelve un DataFrame con una fila por cada fila de datos válida de `ws_opx`
     (desde `_FILA_DATOS`), con las columnas de interés ya nombradas.
 
@@ -248,37 +249,53 @@ def evaluar_hoja(df):
 
     # ── Textos de encabezado, lecturas y oración (Series completas) ─────────
 
-    header_n_alto  = "Diferencial de temperatura entre registrador y digital mayor a 1°C en " + nombre_fase
+    txts = config.obtener_plantillas_textos()
+
+    def _fmt(template, **kwargs):
+        result = pd.Series(template, index=df.index) if any(isinstance(v, pd.Series) for v in kwargs.values()) else template
+        for k, v in kwargs.items():
+            if isinstance(v, pd.Series):
+                if isinstance(result, str):
+                    result = pd.Series(result, index=df.index)
+                res_arr = result.to_numpy(dtype=str)
+                v_arr = v.to_numpy(dtype=str)
+                placeholder = f"{{{k}}}"
+                result = pd.Series([s.replace(placeholder, val) for s, val in zip(res_arr, v_arr)], index=df.index)
+            else:
+                if isinstance(result, pd.Series):
+                    result = result.str.replace(f"{{{k}}}", str(v), regex=False)
+                else:
+                    result = result.replace(f"{{{k}}}", str(v))
+        return result
+
+    header_n_alto   = _fmt(txts['txt_hdr_n_alto'], nombre_fase=nombre_fase)
     lecturas_n_alto = r_txt + "°C R, " + d_txt + "°C D"
-    oracion_n_alto  = "Diferencial de temperatura entre registrador (" + r_txt + "°C) y digital (" + d_txt + "°C) mayor a 1°C en " + nombre_fase
+    oracion_n_alto  = _fmt(txts['txt_ora_n_alto'], r_txt=r_txt, d_txt=d_txt, nombre_fase=nombre_fase)
 
-    header_n_bajo   = "Lectura de temperatura de registrador por arriba de digital en " + nombre_fase
+    header_n_bajo   = _fmt(txts['txt_hdr_n_bajo'], nombre_fase=nombre_fase)
     lecturas_n_bajo = r_txt + "°C R, " + d_txt + "°C D"
-    oracion_n_bajo  = "Lectura de temperatura de registrador (" + r_txt + "°C) por arriba de digital (" + d_txt + "°C) en " + nombre_fase
+    oracion_n_bajo  = _fmt(txts['txt_ora_n_bajo'], r_txt=r_txt, d_txt=d_txt, nombre_fase=nombre_fase)
 
-    header_r_alto   = "Diferencial de temperatura entre registrador y controlador mayor a 1°C en " + nombre_fase
+    header_r_alto   = _fmt(txts['txt_hdr_r_alto'], nombre_fase=nombre_fase)
     lecturas_r_alto = r_txt + "°C R, " + c_txt + "°C C"
-    oracion_r_alto  = "Diferencial de temperatura entre registrador (" + r_txt + "°C) y controlador (" + c_txt + "°C) mayor a 1°C en " + nombre_fase
+    oracion_r_alto  = _fmt(txts['txt_ora_r_alto'], r_txt=r_txt, c_txt=c_txt, nombre_fase=nombre_fase)
 
-    header_r_bajo   = "Lectura de temperatura de controlador por arriba de registrador en " + nombre_fase
+    header_r_bajo   = _fmt(txts['txt_hdr_r_bajo'], nombre_fase=nombre_fase)
     lecturas_r_bajo = c_txt + "°C C, " + r_txt + "°C R"
-    oracion_r_bajo  = "Lectura de temperatura de controlador (" + c_txt + "°C) por arriba de registrador (" + r_txt + "°C) en " + nombre_fase
+    oracion_r_bajo  = _fmt(txts['txt_ora_r_bajo'], r_txt=r_txt, c_txt=c_txt, nombre_fase=nombre_fase)
 
-    # Encabezados constantes (no dependen de la fase): antes se materializaban
-    # como Series con .apply(lambda _: CONST), lo cual creaba un vector completo
-    # por fila sin necesidad. Se usan como escalares.
-    _HDR_REG_CRIT     = "Temperatura de registrador por debajo de la temperatura programada en holding"
+    _HDR_REG_CRIT     = _fmt(txts['txt_hdr_reg_crit'], nombre_fase=nombre_fase)
     lecturas_reg_crit = r_txt + "°C R"
-    oracion_reg_crit  = "Temperatura de registrador (" + r_txt + "°C) por debajo de la temperatura programada en holding"
+    oracion_reg_crit  = _fmt(txts['txt_ora_reg_crit'], r_txt=r_txt, nombre_fase=nombre_fase)
 
-    _HDR_DIG_CRIT     = "Lectura de temperatura de digital por debajo de la temperatura programada en holding"
+    _HDR_DIG_CRIT     = _fmt(txts['txt_hdr_dig_crit'], nombre_fase=nombre_fase)
     lecturas_dig_crit = d_txt + "°C D"
-    oracion_dig_crit  = "Lectura de temperatura de digital (" + d_txt + "°C) por debajo de la temperatura programada en holding"
+    oracion_dig_crit  = _fmt(txts['txt_ora_dig_crit'], d_txt=d_txt, nombre_fase=nombre_fase)
 
-    texto_bar_f3     = "Presión configurada menor a 1.6 Bar en " + nombre_fase
-    texto_bar_f4     = "Presión configurada menor a 1.5 Bar en " + nombre_fase
-    texto_caudal_123 = "Caudal de flujo de agua por debajo del límite crítico 230 m3/h en " + nombre_fase + " de calentamiento"
-    _TXT_CAUDAL_4    = "Caudal por debajo del límite crítico 210 m3/h en holding"
+    texto_bar_f3     = _fmt(txts['txt_bar_f3'], nombre_fase=nombre_fase)
+    texto_bar_f4     = _fmt(txts['txt_bar_f4'], nombre_fase=nombre_fase)
+    texto_caudal_123 = _fmt(txts['txt_caudal_123'], nombre_fase=nombre_fase)
+    _TXT_CAUDAL_4    = _fmt(txts['txt_caudal_4'], nombre_fase=nombre_fase)
 
     # ── Acumulación de ocurrencias por header (orden de primera aparición) ──
     #
