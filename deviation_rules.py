@@ -44,7 +44,7 @@ _FILA_DATOS = 7   # Primera fila con datos reales en la hoja
 
 # Temperatura crítica en holding (fase 4): por debajo de este valor se
 # genera desviación tanto para registrador como para digital.
-_TEMP_CRITICA_F4 = 122.5
+
 
 # Columnas de interés leídas de la hoja (en el orden del DataFrame).
 _DC_COLS = (
@@ -207,6 +207,15 @@ def evaluar_hoja(df):
     entradas  = []
     idx_grupos = {}
 
+    # Cargar parámetros configurables
+    params = config.obtener_parametros_criticos()
+    _T_CRIT = params.get("param_temp_critica_f4", 122.5)
+    _DIF_MAX = params.get("param_dif_temp_max", 1.0)
+    _P_MIN_F3 = params.get("param_presion_min_f3", 1.6)
+    _P_MIN_F4 = params.get("param_presion_min_f4", 1.5)
+    _C_MIN_123 = params.get("param_caudal_min_123", 230.0)
+    _C_MIN_4 = params.get("param_caudal_min_4", 210.0)
+
     if df.empty:
         return entradas
 
@@ -236,16 +245,16 @@ def evaluar_hoja(df):
     mask_r_alto  = m_no_vacio & r.notna() & (r > 1)
     mask_r_bajo  = m_no_vacio & r.notna() & (r <= -0.1)
 
-    mask_bar_f3 = e_bar.notna() & (fase == 3) & (e_bar < 1.6)
-    mask_bar_f4 = e_bar.notna() & (fase == 4) & (e_bar < 1.5)
+    mask_bar_f3 = e_bar.notna() & (fase == 3) & (e_bar < _P_MIN_F3)
+    mask_bar_f4 = e_bar.notna() & (fase == 4) & (e_bar < _P_MIN_F4)
 
-    mask_caudal_123 = l_caudal.notna() & fase.isin([1, 2, 3]) & (l_caudal < 230)
-    mask_caudal_4   = l_caudal.notna() & (fase == 4)          & (l_caudal < 210)
+    mask_caudal_123 = l_caudal.notna() & fase.isin([1, 2, 3]) & (l_caudal < _C_MIN_123)
+    mask_caudal_4   = l_caudal.notna() & (fase == 4)          & (l_caudal < _C_MIN_4)
 
     # Temperatura crítica en holding: registrador NO requiere m_no_vacio
     # (columna G siempre presente desde el PDF); digital sí lo requiere.
-    mask_reg_crit_f4 = registrador.notna() & (fase == 4) & (registrador < _TEMP_CRITICA_F4)
-    mask_dig_crit_f4 = m_no_vacio          & (fase == 4) & (digital     < _TEMP_CRITICA_F4)
+    mask_reg_crit_f4 = registrador.notna() & (fase == 4) & (registrador < _T_CRIT)
+    mask_dig_crit_f4 = m_no_vacio          & (fase == 4) & (digital     < _T_CRIT)
 
     # ── Textos de encabezado, lecturas y oración (Series completas) ─────────
 

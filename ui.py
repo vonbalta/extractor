@@ -1468,6 +1468,66 @@ class PantallaConfiguracion(SmoothScrollArea):
         ct_layout.addLayout(form_layout)
         layout.addWidget(card_textos)
 
+        # Card de Parámetros Críticos (Numéricos)
+        card_params = CardWidget()
+        cp_layout = QVBoxLayout(card_params)
+        cp_layout.setContentsMargins(24, 24, 24, 24)
+        cp_layout.setSpacing(16)
+
+        lbl_prm = make_label("Parámetros Críticos y Umbrales", size=14, weight=600)
+        lbl_prm_sub = make_label("Modifica los valores numéricos bajo los cuales se disparan las desviaciones.", size=11, css_class="text-muted")
+        cp_layout.addWidget(lbl_prm)
+        cp_layout.addWidget(lbl_prm_sub)
+        cp_layout.addSpacing(8)
+
+        self.inputs_params = {}
+        parametros = config.obtener_parametros_criticos()
+
+        campos_prm = [
+            ("param_temp_critica_f4", "Temperatura crítica en Holding (°C)",
+             "Si la temperatura en Fase 4 (Holding) cae por debajo de este valor, se registrará una desviación crítica."),
+
+            ("param_dif_temp_max", "Diferencial de temp. máximo permitido (°C)",
+             "Diferencia máxima permitida entre los sensores (ej. Registrador vs Controlador). Usualmente 1.0 °C."),
+
+            ("param_presion_min_f3", "Presión mínima en Fase 3 (Bar)",
+             "Umbral de presión mínima para la Fase 3 de calentamiento."),
+
+            ("param_presion_min_f4", "Presión mínima en Fase 4 (Bar)",
+             "Umbral de presión mínima exigida durante la Fase 4 (Holding)."),
+
+            ("param_caudal_min_123", "Caudal mínimo Fases 1,2,3 (m3/h)",
+             "Límite crítico de caudal de agua aplicable a las fases iniciales de calentamiento."),
+
+            ("param_caudal_min_4", "Caudal mínimo Fase 4 (m3/h)",
+             "Límite crítico de caudal de agua durante la Fase 4 (Holding)."),
+        ]
+
+        form_params = QFormLayout()
+        form_params.setSpacing(12)
+
+        for k, label_text, tooltip in campos_prm:
+            inp = LineEdit()
+            inp.setText(str(parametros.get(k, "")))
+            inp.setFixedWidth(100)
+            self.inputs_params[k] = inp
+
+            lbl_widget = QWidget()
+            lbl_layout = QVBoxLayout(lbl_widget)
+            lbl_layout.setContentsMargins(0, 0, 0, 0)
+            lbl_layout.setSpacing(2)
+
+            title_lbl = make_label(label_text, size=12)
+            desc_lbl = make_label(tooltip, size=10, css_class="text-muted")
+
+            lbl_layout.addWidget(title_lbl)
+            lbl_layout.addWidget(desc_lbl)
+
+            form_params.addRow(lbl_widget, inp)
+
+        cp_layout.addLayout(form_params)
+        layout.addWidget(card_params)
+
         self.btn_guardar = PrimaryPushButton("Guardar Cambios")
         self.btn_guardar.setFixedWidth(160)
         self.btn_guardar.clicked.connect(self.guardar_cambios)
@@ -1483,6 +1543,9 @@ class PantallaConfiguracion(SmoothScrollArea):
 
         nuevas_plantillas = {k: inp.text() for k, inp in self.inputs_texto.items()}
         config.guardar_plantillas_textos(nuevas_plantillas)
+
+        nuevos_params = {k: inp.text() for k, inp in self.inputs_params.items()}
+        config.guardar_parametros_criticos(nuevos_params)
 
         InfoBar.success(
             title='Guardado exitoso',

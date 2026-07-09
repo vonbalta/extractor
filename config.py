@@ -34,6 +34,13 @@ _DEFAULTS = {
     "hora_inicio":       "",
     "tema":              "light",
     "palabras_descarte": list(_PALABRAS_DESCARTE_DEFAULT),
+    "param_temp_critica_f4": 122.5,
+    "param_dif_temp_max": 1.0,
+    "param_presion_min_f3": 1.6,
+    "param_presion_min_f4": 1.5,
+    "param_caudal_min_123": 230.0,
+    "param_caudal_min_4": 210.0,
+
     "txt_hdr_n_alto": "Diferencial de temperatura entre registrador y digital mayor a 1°C en {nombre_fase}",
     "txt_ora_n_alto": "Diferencial de temperatura entre registrador ({r_txt}°C) y digital ({d_txt}°C) mayor a 1°C en {nombre_fase}",
     "txt_hdr_n_bajo": "Lectura de temperatura de registrador por arriba de digital en {nombre_fase}",
@@ -266,3 +273,30 @@ def guardar_plantillas_textos(plantillas_nuevas):
             validas[k] = v
     if validas:
         guardar_config(validas)
+
+# ---------------------------------------------------------------------------
+#  PARÁMETROS CRÍTICOS DE DESVIACIONES
+# ---------------------------------------------------------------------------
+
+def obtener_parametros_criticos():
+    conf = cargar_config()
+    params = {}
+    for k in _DEFAULTS.keys():
+        if k.startswith("param_"):
+            val = conf.get(k, _DEFAULTS[k])
+            try:
+                params[k] = float(val)
+            except (ValueError, TypeError):
+                params[k] = _DEFAULTS[k]
+    return params
+
+def guardar_parametros_criticos(params_nuevos):
+    validos = {}
+    for k, v in params_nuevos.items():
+        if k in _DEFAULTS and k.startswith("param_"):
+            try:
+                validos[k] = float(v)
+            except (ValueError, TypeError):
+                pass
+    if validos:
+        guardar_config(validos)
