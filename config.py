@@ -34,6 +34,7 @@ _DEFAULTS = {
     "hora_inicio":       "",
     "tema":              "light",
     "palabras_descarte": list(_PALABRAS_DESCARTE_DEFAULT),
+    "formato_texto_desviaciones": "unificado", # 'unificado' o 'separado'
 }
 
 
@@ -171,7 +172,7 @@ def guardar_hora_inicio(hora):
         h = min_obj // 60
         m = min_obj % 60
         guardar_config({"hora_inicio": f"{h:02d}:{m:02d}"})
-        
+
 def obtener_tema():
     return cargar_config().get("tema", "light")
 
@@ -231,3 +232,13 @@ def guardar_palabras_descarte(valor):
     ningún PDF por nombre".
     """
     guardar_config({"palabras_descarte": _normalizar_palabras_descarte(valor)})
+# ---------------------------------------------------------------------------
+#  FORMATO DE TEXTO DE DESVIACIONES
+# ---------------------------------------------------------------------------
+
+def obtener_formato_texto_desviaciones():
+    return cargar_config().get("formato_texto_desviaciones", "unificado")
+
+def guardar_formato_texto_desviaciones(modo):
+    if modo in ("unificado", "separado"):
+        guardar_config({"formato_texto_desviaciones": modo})

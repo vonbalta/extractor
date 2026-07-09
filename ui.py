@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QVariantAnimation
 from PyQt6.QtGui import QFont, QColor, QPalette, QTextCursor, QKeySequence, QShortcut
 
-from qfluentwidgets import InfoBar, InfoBarPosition, FluentWindow, NavigationItemPosition, SubtitleLabel, setTheme, Theme, NavigationInterface, PushButton, PrimaryPushButton, LineEdit, TextEdit, ProgressBar, CheckBox, CardWidget, BodyLabel, CaptionLabel, IconWidget, FluentIcon, ToolTipFilter
+from qfluentwidgets import RadioButton, InfoBar, InfoBarPosition, FluentWindow, NavigationItemPosition, SubtitleLabel, setTheme, Theme, NavigationInterface, PushButton, PrimaryPushButton, LineEdit, TextEdit, ProgressBar, CheckBox, CardWidget, BodyLabel, CaptionLabel, IconWidget, FluentIcon, ToolTipFilter
 
 import config
 
@@ -581,7 +581,7 @@ class MenuCard(CardWidget):
 # ─── Pantalla principal (menú) ────────────────────────────────────────
 class PantallaMenu(QWidget):
 
-    def __init__(self, on_nuevo, on_actualizar, on_revisar, toggle_tema):
+    def __init__(self, toggle_tema):
         super().__init__()
         self.toggle_tema = toggle_tema
         root = QVBoxLayout(self)
@@ -1220,9 +1220,6 @@ class VentanaPrincipal(FluentWindow):
         self._centrar()
 
         self.pantalla_menu = PantallaMenu(
-            on_nuevo=lambda: self.switchTo(self.pantalla_nuevo),
-            on_actualizar=lambda: self.switchTo(self.pantalla_actualizar),
-            on_revisar=lambda: self.switchTo(self.pantalla_revisar),
             toggle_tema=self.alternar_tema
         )
         self.pantalla_menu.setObjectName("PantallaMenu")
@@ -1370,6 +1367,26 @@ class PantallaConfiguracion(QWidget):
         card_layout.addSpacing(8)
         card_layout.addWidget(self.descarte_input)
 
+        card_layout.addSpacing(24)
+
+        lbl_formato = make_label("Formato de texto de Desviaciones", size=14, weight=600)
+        lbl_formato_sub = make_label("Elige cómo se escriben las descripciones y horas en el reporte de salida.", size=11, css_class="text-muted")
+
+        self.radio_unificado = RadioButton('Unificado (Oración completa en Desviación)')
+        self.radio_separado = RadioButton('Separado (Header en Desviación, Hora en Hora)')
+
+        formato_actual = config.obtener_formato_texto_desviaciones()
+        if formato_actual == "separado":
+            self.radio_separado.setChecked(True)
+        else:
+            self.radio_unificado.setChecked(True)
+
+        card_layout.addWidget(lbl_formato)
+        card_layout.addWidget(lbl_formato_sub)
+        card_layout.addSpacing(8)
+        card_layout.addWidget(self.radio_unificado)
+        card_layout.addWidget(self.radio_separado)
+
         # Botón de guardado
         self.btn_guardar = PrimaryPushButton("Guardar Cambios")
         self.btn_guardar.setFixedWidth(160)
@@ -1383,6 +1400,12 @@ class PantallaConfiguracion(QWidget):
 
     def guardar_cambios(self):
         config.guardar_palabras_descarte(self.descarte_input.text())
+
+        if self.radio_separado.isChecked():
+            config.guardar_formato_texto_desviaciones("separado")
+        else:
+            config.guardar_formato_texto_desviaciones("unificado")
+
         # Show toast from the parent window if needed
         InfoBar.success(
             title='Guardado exitoso',
