@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QVariantAnimation
 from PyQt6.QtGui import QFont, QColor, QPalette, QTextCursor, QKeySequence, QShortcut
 
-from qfluentwidgets import InfoBar, InfoBarPosition
+from qfluentwidgets import ScrollArea, SmoothScrollArea, InfoBar, InfoBarPosition
 
 import config
 
@@ -359,7 +359,7 @@ class WorkerThread(QThread):
         handlers = self._configure_logging()
         cb_stats = self._stats_proxy
         try:
-            import logica  
+            import logica
             if self.modo == "nuevo":
                 ruta_final = logica.ejecutar_extractor_lotes(
                     ruta_plantilla     = self.params["ruta_plantilla"],
@@ -1337,33 +1337,85 @@ class DialogoConfiguracion(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Configuración")
-        self.setMinimumWidth(450)
+        self.setMinimumWidth(700)
+        self.setMinimumHeight(600)
         self.setModal(True)
 
-        layout = QVBoxLayout(self)
-        layout.setSpacing(16)
+        # Use a smooth scroll area for the settings
+        scroll_area = SmoothScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("QScrollArea {background: transparent; border: none;}")
+
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+
+        layout = QVBoxLayout(container)
+        layout.setSpacing(24)
 
         # Título
         titulo = QLabel("Configuración global")
         titulo.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         layout.addWidget(titulo)
 
-        # Sección: Palabras de descarte
-        lbl_desc = QLabel(
-            "Palabras a descartar en nombres de PDF\n"
-            "(separadas por coma, sin espacios extra):"
-        )
+        # -- Palabras de descarte
+        lbl_desc = QLabel("Palabras a descartar en nombres de PDF (separadas por coma):")
         lbl_desc.setFont(QFont("Segoe UI", 10))
         self.descarte_input = QLineEdit()
         self.descarte_input.setText(config.obtener_palabras_descarte_texto())
         self.descarte_input.setPlaceholderText("ej. prueba, limpieza, xxx")
 
-        # Layout en formulario
         form = QFormLayout()
         form.addRow(lbl_desc, self.descarte_input)
         layout.addLayout(form)
 
+        # -- Textos de Desviaciones
+        lbl_txt = QLabel("Plantillas de Textos de Desviaciones")
+        lbl_txt.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        layout.addWidget(lbl_txt)
+
+        lbl_txt_sub = QLabel("Personaliza los textos generados. Variables permitidas: {nombre_fase}, {r_txt}, {d_txt}, {c_txt}")
+        lbl_txt_sub.setFont(QFont("Segoe UI", 9))
+        layout.addWidget(lbl_txt_sub)
+
+        self.inputs_texto = {}
+        plantillas = config.obtener_plantillas_textos()
+
+        campos = [
+            ("txt_hdr_n_alto", "Temp Registrador > Digital (>1°C) [Header]"),
+            ("txt_ora_n_alto", "Temp Registrador > Digital (>1°C) [Oración]"),
+            ("txt_hdr_n_bajo", "Temp Registrador < Digital [Header]"),
+            ("txt_ora_n_bajo", "Temp Registrador < Digital [Oración]"),
+            ("txt_hdr_r_alto", "Temp Registrador > Controlador (>1°C) [Header]"),
+            ("txt_ora_r_alto", "Temp Registrador > Controlador (>1°C) [Oración]"),
+            ("txt_hdr_r_bajo", "Temp Registrador < Controlador [Header]"),
+            ("txt_ora_r_bajo", "Temp Registrador < Controlador [Oración]"),
+            ("txt_hdr_reg_crit", "Temp Registrador Crítica (Holding) [Header]"),
+            ("txt_ora_reg_crit", "Temp Registrador Crítica (Holding) [Oración]"),
+            ("txt_hdr_dig_crit", "Temp Digital Crítica (Holding) [Header]"),
+            ("txt_ora_dig_crit", "Temp Digital Crítica (Holding) [Oración]"),
+            ("txt_bar_f3", "Presión Fase 3 (<1.6 Bar)"),
+            ("txt_bar_f4", "Presión Fase 4 (<1.5 Bar)"),
+            ("txt_caudal_123", "Caudal Fases 1,2,3 (<230 m3/h)"),
+            ("txt_caudal_4", "Caudal Fase 4 (<210 m3/h)"),
+        ]
+
+        form_txt = QFormLayout()
+        for k, label in campos:
+            inp = QLineEdit()
+            inp.setText(plantillas.get(k, ""))
+            self.inputs_texto[k] = inp
+
+            lbl = QLabel(label)
+            lbl.setFont(QFont("Segoe UI", 9))
+            form_txt.addRow(lbl, inp)
+
+        layout.addLayout(form_txt)
+
         layout.addStretch()
+        scroll_area.setWidget(container)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.addWidget(scroll_area)
 
         # Botones
         botones = QDialogButtonBox(
@@ -1371,10 +1423,14 @@ class DialogoConfiguracion(QDialog):
         )
         botones.accepted.connect(self.guardar_y_cerrar)
         botones.rejected.connect(self.reject)
-        layout.addWidget(botones)
+        main_layout.addWidget(botones)
 
     def guardar_y_cerrar(self):
         config.guardar_palabras_descarte(self.descarte_input.text())
+
+        nuevas_plantillas = {k: inp.text() for k, inp in self.inputs_texto.items()}
+        config.guardar_plantillas_textos(nuevas_plantillas)
+
         self.accept()
 
 if __name__ == "__main__":

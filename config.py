@@ -34,6 +34,22 @@ _DEFAULTS = {
     "hora_inicio":       "",
     "tema":              "light",
     "palabras_descarte": list(_PALABRAS_DESCARTE_DEFAULT),
+    "txt_hdr_n_alto": "Diferencial de temperatura entre registrador y digital mayor a 1°C en {nombre_fase}",
+    "txt_ora_n_alto": "Diferencial de temperatura entre registrador ({r_txt}°C) y digital ({d_txt}°C) mayor a 1°C en {nombre_fase}",
+    "txt_hdr_n_bajo": "Lectura de temperatura de registrador por arriba de digital en {nombre_fase}",
+    "txt_ora_n_bajo": "Lectura de temperatura de registrador ({r_txt}°C) por arriba de digital ({d_txt}°C) en {nombre_fase}",
+    "txt_hdr_r_alto": "Diferencial de temperatura entre registrador y controlador mayor a 1°C en {nombre_fase}",
+    "txt_ora_r_alto": "Diferencial de temperatura entre registrador ({r_txt}°C) y controlador ({c_txt}°C) mayor a 1°C en {nombre_fase}",
+    "txt_hdr_r_bajo": "Lectura de temperatura de controlador por arriba de registrador en {nombre_fase}",
+    "txt_ora_r_bajo": "Lectura de temperatura de controlador ({c_txt}°C) por arriba de registrador ({r_txt}°C) en {nombre_fase}",
+    "txt_hdr_reg_crit": "Temperatura de registrador por debajo de la temperatura programada en holding",
+    "txt_ora_reg_crit": "Temperatura de registrador ({r_txt}°C) por debajo de la temperatura programada en holding",
+    "txt_hdr_dig_crit": "Lectura de temperatura de digital por debajo de la temperatura programada en holding",
+    "txt_ora_dig_crit": "Lectura de temperatura de digital ({d_txt}°C) por debajo de la temperatura programada en holding",
+    "txt_bar_f3": "Presión configurada menor a 1.6 Bar en {nombre_fase}",
+    "txt_bar_f4": "Presión configurada menor a 1.5 Bar en {nombre_fase}",
+    "txt_caudal_123": "Caudal de flujo de agua por debajo del límite crítico 230 m3/h en {nombre_fase} de calentamiento",
+    "txt_caudal_4": "Caudal por debajo del límite crítico 210 m3/h en holding",
 }
 
 
@@ -171,7 +187,7 @@ def guardar_hora_inicio(hora):
         h = min_obj // 60
         m = min_obj % 60
         guardar_config({"hora_inicio": f"{h:02d}:{m:02d}"})
-        
+
 def obtener_tema():
     return cargar_config().get("tema", "light")
 
@@ -231,3 +247,22 @@ def guardar_palabras_descarte(valor):
     ningún PDF por nombre".
     """
     guardar_config({"palabras_descarte": _normalizar_palabras_descarte(valor)})
+# ---------------------------------------------------------------------------
+#  PLANTILLAS DE TEXTO DE DESVIACIONES
+# ---------------------------------------------------------------------------
+
+def obtener_plantillas_textos():
+    conf = cargar_config()
+    plantillas = {}
+    for k in _DEFAULTS.keys():
+        if k.startswith("txt_"):
+            plantillas[k] = conf.get(k, _DEFAULTS[k])
+    return plantillas
+
+def guardar_plantillas_textos(plantillas_nuevas):
+    validas = {}
+    for k, v in plantillas_nuevas.items():
+        if k in _DEFAULTS and k.startswith("txt_"):
+            validas[k] = v
+    if validas:
+        guardar_config(validas)
