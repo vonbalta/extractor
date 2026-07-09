@@ -619,14 +619,7 @@ class PantallaMenu(QWidget):
         self.btn_tema.clicked.connect(self.toggle_tema)
         header_row.addWidget(self.btn_tema)
 
-        # Botón de configuración global
-        self.btn_config = PushButton("Ajustes")
-        self.btn_config.setProperty("class", "ghost")
-        self.btn_config.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_config.setToolTip("Configuración global")
-        self.btn_config.setAccessibleName("Configuración")
-        self.btn_config.clicked.connect(self.mostrar_configuracion)
-        header_row.addWidget(self.btn_config)
+
 
         root.addLayout(header_row)
         root.addSpacing(28)
@@ -638,21 +631,65 @@ class PantallaMenu(QWidget):
         root.addWidget(self._divisor)
         root.addSpacing(22)
 
-        section_lbl = make_label("Selecciona una acción", size=11, css_class="text-muted-light")
-        root.addWidget(section_lbl)
-        root.addSpacing(10)
 
-        root.addWidget(MenuCard("Crear reporte nuevo",
-                                "Genera un reporte desde cero a partir de una plantilla y PDFs de ciclo.",
-                                on_nuevo))
-        root.addSpacing(8)
-        root.addWidget(MenuCard("Actualizar reporte existente",
-                                "Agrega nuevas corridas de PDFs a un reporte Excel ya creado.",
-                                on_actualizar))
-        root.addSpacing(8)
-        root.addWidget(MenuCard("Revisar desviaciones",
-                                "Analiza un reporte existente para detectar parámetros fuera de rango.",
-                                on_revisar))
+                # Dashboard Overview Section
+        dash_lbl = make_label("Resumen del Sistema", size=14, weight=600)
+        root.addWidget(dash_lbl)
+        root.addSpacing(16)
+
+        stats_row = QHBoxLayout()
+        stats_row.setSpacing(16)
+
+        # Stat Card 1
+        stat1 = CardWidget()
+        stat1.setFixedHeight(110)
+        stat1_layout = QVBoxLayout(stat1)
+        stat1_layout.addWidget(make_label("Estado del Sistema", size=11, css_class="text-muted"))
+        stat1_layout.addWidget(make_label("En línea", size=24, weight=700, css_class="text-success"))
+        stat1_layout.addWidget(make_label("Listo para procesar PDFs", size=10, css_class="text-muted-light"))
+        stats_row.addWidget(stat1)
+
+        # Stat Card 2
+        stat2 = CardWidget()
+        stat2.setFixedHeight(110)
+        stat2_layout = QVBoxLayout(stat2)
+        stat2_layout.addWidget(make_label("Plantilla Base", size=11, css_class="text-muted"))
+
+        has_template = bool(config.obtener_ruta_plantilla())
+        t_text = "Configurada" if has_template else "Faltante"
+        t_color = "text-success" if has_template else "text-warning"
+
+        stat2_layout.addWidget(make_label(t_text, size=24, weight=700, css_class=t_color))
+        stat2_layout.addWidget(make_label("Verifica 'Ajustes' para cambiar", size=10, css_class="text-muted-light"))
+        stats_row.addWidget(stat2)
+
+        # Stat Card 3
+        stat3 = CardWidget()
+        stat3.setFixedHeight(110)
+        stat3_layout = QVBoxLayout(stat3)
+        stat3_layout.addWidget(make_label("Reglas de Desviación", size=11, css_class="text-muted"))
+        stat3_layout.addWidget(make_label("Activas", size=24, weight=700, css_class="text-accent"))
+        stat3_layout.addWidget(make_label("Motor de revisión cargado", size=10, css_class="text-muted-light"))
+        stats_row.addWidget(stat3)
+
+        root.addLayout(stats_row)
+        root.addSpacing(32)
+
+        # Quick Guide Section
+        guide_lbl = make_label("Guía Rápida", size=14, weight=600)
+        root.addWidget(guide_lbl)
+        root.addSpacing(12)
+
+        guide_card = CardWidget()
+        guide_layout = QVBoxLayout(guide_card)
+        guide_layout.setContentsMargins(20, 20, 20, 20)
+        guide_layout.setSpacing(12)
+
+        guide_layout.addWidget(make_label("1. <b>Nuevo Reporte:</b> Usa esta opción para generar un Excel en blanco basado en tu plantilla y procesar un lote inicial de PDFs.", size=12))
+        guide_layout.addWidget(make_label("2. <b>Actualizar Reporte:</b> Añade nuevos ciclos a un archivo Excel existente sin sobrescribir los datos anteriores.", size=12))
+        guide_layout.addWidget(make_label("3. <b>Revisar Desviaciones:</b> Escanea un Excel generado para identificar parámetros que se salgan de los rangos permitidos (ej. temperatura, presión).", size=12))
+
+        root.addWidget(guide_card)
         root.addStretch()
 
     def update_theme(self):
