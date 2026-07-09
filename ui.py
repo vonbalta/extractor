@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QVariantAnimation
 from PyQt6.QtGui import QFont, QColor, QPalette, QTextCursor, QKeySequence, QShortcut
 
-from qfluentwidgets import InfoBar, InfoBarPosition
+from qfluentwidgets import InfoBar, InfoBarPosition, FluentWindow, NavigationItemPosition, SubtitleLabel, setTheme, Theme, NavigationInterface, PushButton, PrimaryPushButton, LineEdit, TextEdit, ProgressBar, CheckBox, CardWidget, BodyLabel, CaptionLabel, IconWidget, FluentIcon, ToolTipFilter
 
 import config
 
@@ -129,38 +129,8 @@ def generar_estilos(C):
         font-weight: 700;
         letter-spacing: 1px;
     }}
-    QLineEdit {{
-        background-color: {C["surface"]};
-        color: {C["text"]};
-        border: 1px solid {C["border"]};
-        border-bottom: 1px solid {C["border_input"]};
-        border-radius: 4px;
-        padding: 6px 12px;
-        font-size: 14px;
-        selection-background-color: {C["accent"]};
-        selection-color: #ffffff;
-    }}
-    QLineEdit:focus {{
-        border: 1px solid {C["accent"]};
-        border-bottom: 2px solid {C["accent"]};
-        background-color: {C["surface"]};
-    }}
-    QLineEdit:read-only {{
-        background-color: {C["surface_2"]};
-        color: {C["muted"]};
-        border: 1px solid {C["border_soft"]};
-    }}
-    QTextEdit {{
-        background-color: {C["log_bg"]};
-        color: {C["text"]};
-        border: 1px solid {C["border"]};
-        border-radius: 4px;
-        padding: 8px;
-        font-family: "Cascadia Mono", "Consolas", monospace;
-        font-size: 13px;
-        selection-background-color: {C["accent"]};
-        selection-color: #ffffff;
-    }}
+
+
     QScrollBar:vertical {{
         background: transparent;
         width: 4px;
@@ -359,7 +329,7 @@ class WorkerThread(QThread):
         handlers = self._configure_logging()
         cb_stats = self._stats_proxy
         try:
-            import logica  
+            import logica
             if self.modo == "nuevo":
                 ruta_final = logica.ejecutar_extractor_lotes(
                     ruta_plantilla     = self.params["ruta_plantilla"],
@@ -469,7 +439,7 @@ class FileSelector(QWidget):
         row = QHBoxLayout()
         row.setSpacing(8)
 
-        self.field = QLineEdit()
+        self.field = LineEdit()
         self.field.setPlaceholderText("Sin seleccionar...")
         self.field.setReadOnly(True)
         # Accesibilidad: nombre accesible para lectores de pantalla y tooltip que
@@ -486,7 +456,7 @@ class FileSelector(QWidget):
             "dir":  "Seleccionar una carpeta",
             "save": "Elegir dónde guardar el archivo",
         }
-        btn = QPushButton("Examinar")
+        btn = PushButton("Examinar")
         btn.setProperty("class", "ghost")
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setToolTip(_tips.get(self.mode, "Examinar"))
@@ -534,7 +504,7 @@ class Card(QFrame):
         shadow.setColor(QColor(0, 0, 0, 10))
         self.setGraphicsEffect(shadow)
 
-class MenuCard(QFrame):
+class MenuCard(CardWidget):
     _instances = []
 
     def __init__(self, title, description, on_click, parent=None):
@@ -643,14 +613,14 @@ class PantallaMenu(QWidget):
         header_row.addLayout(title_col)
         header_row.addStretch()
 
-        self.btn_tema = QPushButton("Light" if current_theme == "light" else "Night")
+        self.btn_tema = PushButton("Light" if current_theme == "light" else "Night")
         self.btn_tema.setProperty("class", "ghost")
         self.btn_tema.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_tema.clicked.connect(self.toggle_tema)
         header_row.addWidget(self.btn_tema)
 
         # Botón de configuración global
-        self.btn_config = QPushButton("Ajustes")
+        self.btn_config = PushButton("Ajustes")
         self.btn_config.setProperty("class", "ghost")
         self.btn_config.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_config.setToolTip("Configuración global")
@@ -710,7 +680,7 @@ class PantallaFlujo(QWidget):
         root.setSpacing(0)
 
         top = QHBoxLayout()
-        btn_back = QPushButton("← Volver")
+        btn_back = PushButton("← Volver")
         btn_back.setProperty("class", "ghost")
         btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_back.clicked.connect(self._volver)
@@ -744,14 +714,14 @@ class PantallaFlujo(QWidget):
         root.addWidget(card)
         root.addSpacing(14)
 
-        self.btn_ejecutar = QPushButton("Ejecutar")
+        self.btn_ejecutar = PrimaryPushButton("Ejecutar")
         self.btn_ejecutar.setProperty("class", "primary")
         self.btn_ejecutar.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_ejecutar.setToolTip("Iniciar el procesamiento (Ctrl+Enter)")
         self.btn_ejecutar.setAccessibleName("Ejecutar procesamiento")
         self.btn_ejecutar.clicked.connect(self._ejecutar)
 
-        self.btn_cancelar = QPushButton("Cancelar")
+        self.btn_cancelar = PushButton("Cancelar")
         self.btn_cancelar.setProperty("class", "ghost")
         self.btn_cancelar.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_cancelar.setVisible(False)
@@ -773,7 +743,7 @@ class PantallaFlujo(QWidget):
         root.addWidget(self.lbl_estado)
         root.addSpacing(4)
 
-        self.progress = QProgressBar()
+        self.progress = ProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
         self.progress.setFixedHeight(4)
@@ -783,7 +753,7 @@ class PantallaFlujo(QWidget):
         root.addWidget(self.progress)
         root.addSpacing(4)
 
-        self.log_area = QTextEdit()
+        self.log_area = TextEdit()
         self.log_area.setReadOnly(True)
         self.log_area.setPlaceholderText("El registro de procesamiento aparecerá aquí...")
         self.log_area.setMinimumHeight(108)
@@ -799,7 +769,7 @@ class PantallaFlujo(QWidget):
         root.addWidget(self.resumen_lbl)
 
         label_abrir = "Abrir archivo revisado" if modo == "revisar" else "Abrir archivo resultado"
-        self.btn_abrir = QPushButton(label_abrir)
+        self.btn_abrir = PushButton(label_abrir)
         self.btn_abrir.setProperty("class", "success")
         self.btn_abrir.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_abrir.setVisible(False)
@@ -833,7 +803,7 @@ class PantallaFlujo(QWidget):
             hora_col.setSpacing(6)
             lbl_hora = make_label("Hora inicio (HH:MM)", size=10, css_class="text-soft")
             hora_col.addWidget(lbl_hora)
-            self.hora_input = QLineEdit()
+            self.hora_input = LineEdit()
             self.hora_input.setPlaceholderText("ej. 19:50")
             self.hora_input.setMaxLength(5)
             self.hora_input.setFixedWidth(104)
@@ -880,7 +850,7 @@ class PantallaFlujo(QWidget):
             hora_col.setSpacing(6)
             lbl_hora2 = make_label("Hora inicio (HH:MM)", size=10, css_class="text-soft")
             hora_col.addWidget(lbl_hora2)
-            self.hora_input = QLineEdit()
+            self.hora_input = LineEdit()
             self.hora_input.setPlaceholderText("ej. 19:50")
             self.hora_input.setMaxLength(5)
             self.hora_input.setFixedWidth(104)
@@ -901,7 +871,7 @@ class PantallaFlujo(QWidget):
             )
             layout.addWidget(self.sel_excel)
 
-            self.chk_actualizar = QCheckBox('Actualizar la hoja Desviaciones')
+            self.chk_actualizar = CheckBox('Actualizar la hoja Desviaciones')
             self.chk_actualizar.setCursor(Qt.CursorShape.PointingHandCursor)
             self.chk_actualizar.toggled.connect(self._toggle_actualizar_in_situ)
             layout.addWidget(self.chk_actualizar)
@@ -1206,7 +1176,7 @@ class PantallaFlujo(QWidget):
             lbl.style().polish(lbl)
 
 # ─── Ventana principal ───────────────────────────────────────────────
-class VentanaPrincipal(QMainWindow):
+class VentanaPrincipal(FluentWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Procesador de Esterilizado")
@@ -1214,24 +1184,32 @@ class VentanaPrincipal(QMainWindow):
         self.resize(720, 520)
         self._centrar()
 
-        self.stack = QStackedWidget()
-        self.setCentralWidget(self.stack)
-
         self.pantalla_menu = PantallaMenu(
-            on_nuevo=lambda: self._ir_a("nuevo"),
-            on_actualizar=lambda: self._ir_a("actualizar"),
-            on_revisar=lambda: self._ir_a("revisar"),
+            on_nuevo=lambda: self.switchTo(self.pantalla_nuevo),
+            on_actualizar=lambda: self.switchTo(self.pantalla_actualizar),
+            on_revisar=lambda: self.switchTo(self.pantalla_revisar),
             toggle_tema=self.alternar_tema
         )
-        self.pantalla_nuevo = PantallaFlujo("nuevo", on_volver=self._ir_a_menu)
-        self.pantalla_actualizar = PantallaFlujo("actualizar", on_volver=self._ir_a_menu)
-        self.pantalla_revisar = PantallaFlujo("revisar", on_volver=self._ir_a_menu)
+        self.pantalla_menu.setObjectName("PantallaMenu")
+        self.pantalla_nuevo = PantallaFlujo("nuevo", on_volver=lambda: self.switchTo(self.pantalla_menu))
+        self.pantalla_nuevo.setObjectName("PantallaNuevo")
+        self.pantalla_actualizar = PantallaFlujo("actualizar", on_volver=lambda: self.switchTo(self.pantalla_menu))
+        self.pantalla_actualizar.setObjectName("PantallaActualizar")
+        self.pantalla_revisar = PantallaFlujo("revisar", on_volver=lambda: self.switchTo(self.pantalla_menu))
+        self.pantalla_revisar.setObjectName("PantallaRevisar")
 
-        self.stack.addWidget(self.pantalla_menu)
-        self.stack.addWidget(self.pantalla_nuevo)
-        self.stack.addWidget(self.pantalla_actualizar)
-        self.stack.addWidget(self.pantalla_revisar)
-        self.stack.setCurrentIndex(0)
+        self.addSubInterface(self.pantalla_menu, FluentIcon.HOME, 'Inicio')
+        self.addSubInterface(self.pantalla_nuevo, FluentIcon.ADD, 'Nuevo Reporte')
+        self.addSubInterface(self.pantalla_actualizar, FluentIcon.UPDATE, 'Actualizar Reporte')
+        self.addSubInterface(self.pantalla_revisar, FluentIcon.SEARCH, 'Revisar Desviaciones')
+
+        self.navigationInterface.addItem(
+            routeKey='Configuracion',
+            icon=FluentIcon.SETTING,
+            text='Configuración',
+            onClick=self.mostrar_configuracion,
+            position=NavigationItemPosition.BOTTOM
+        )
 
         # Atajos de teclado
         QShortcut(QKeySequence("Ctrl+1"), self, lambda: self._ir_a("nuevo"))
@@ -1241,13 +1219,9 @@ class VentanaPrincipal(QMainWindow):
         QShortcut(QKeySequence("Escape"), self, self._ir_a_menu)
 
     def _ejecutar_actual(self):
-        idx = self.stack.currentIndex()
-        if idx == 1:
-            self.pantalla_nuevo._ejecutar()
-        elif idx == 2:
-            self.pantalla_actualizar._ejecutar()
-        elif idx == 3:
-            self.pantalla_revisar._ejecutar()
+        actual = self.stackedWidget.currentWidget()
+        if hasattr(actual, "_ejecutar"):
+            actual._ejecutar()
 
     def _centrar(self):
         screen = QApplication.primaryScreen().availableGeometry()
@@ -1258,32 +1232,31 @@ class VentanaPrincipal(QMainWindow):
     def _ir_a(self, modo):
         if modo == "nuevo":
             self.pantalla_nuevo.reset()
-            self.stack.setCurrentIndex(1)
+            self.switchTo(self.pantalla_nuevo)
         elif modo == "actualizar":
             self.pantalla_actualizar.reset()
-            self.stack.setCurrentIndex(2)
+            self.switchTo(self.pantalla_actualizar)
         elif modo == "revisar":
             self.pantalla_revisar.reset()
-            self.stack.setCurrentIndex(3)
+            self.switchTo(self.pantalla_revisar)
+
+    def switchTo(self, interface):
+        self.stackedWidget.setCurrentWidget(interface)
+
+    def mostrar_configuracion(self):
+        dialogo = DialogoConfiguracion(self)
+        dialogo.exec()
 
     def _ir_a_menu(self):
-        # No abandonar una pantalla de flujo mientras su worker está corriendo:
-        # el atajo Escape (y cualquier navegación) queda inhibido hasta terminar
-        # o cancelar. Evita dejar el hilo huérfano procesando en segundo plano.
-        pantallas = {
-            1: self.pantalla_nuevo,
-            2: self.pantalla_actualizar,
-            3: self.pantalla_revisar,
-        }
-        actual = pantallas.get(self.stack.currentIndex())
-        if actual is not None and getattr(actual, "_executing", False):
-            return
-        self.stack.setCurrentIndex(0)
+        self.switchTo(self.pantalla_menu)
 
     def alternar_tema(self):
         global current_theme, C
         current_theme = "dark" if current_theme == "light" else "light"
         C = C_DARK.copy() if current_theme == "dark" else C_LIGHT.copy()
+
+        # Actualizar tema de qfluentwidgets
+        setTheme(Theme.DARK if current_theme == "dark" else Theme.LIGHT)
 
         try:
             config.guardar_tema(current_theme)
@@ -1323,9 +1296,11 @@ def main():
     if saved_theme == "dark":
         current_theme = "dark"
         C = C_DARK.copy()
+        setTheme(Theme.DARK)
     else:
         current_theme = "light"
         C = C_LIGHT.copy()
+        setTheme(Theme.LIGHT)
 
     app.setStyleSheet(generar_estilos(C))
     ventana = VentanaPrincipal()
@@ -1354,7 +1329,7 @@ class DialogoConfiguracion(QDialog):
             "(separadas por coma, sin espacios extra):"
         )
         lbl_desc.setFont(QFont("Segoe UI", 10))
-        self.descarte_input = QLineEdit()
+        self.descarte_input = LineEdit()
         self.descarte_input.setText(config.obtener_palabras_descarte_texto())
         self.descarte_input.setPlaceholderText("ej. prueba, limpieza, xxx")
 
