@@ -581,6 +581,23 @@ class MenuCard(CardWidget):
         color_hex = color.name() if isinstance(color, QColor) else color.name()
         self.setStyleSheet(f"QFrame#menuCard {{ background-color: {color_hex}; border: 1px solid {C['border']}; border-radius: 8px; }}")
 
+    def _guardar_hora(self):
+        try:
+            config.guardar_hora_inicio(self.hora_input.text())
+            self.hora_input.setStyleSheet("")
+        except ValueError:
+            self.hora_input.setStyleSheet("border: 1px solid red;")
+
+    def _examinar_plantilla(self):
+        ruta, _ = QFileDialog.getOpenFileName(self, "Seleccionar plantilla", "", "Excel (*.xlsx *.xlsm)")
+        if ruta:
+            self.plantilla_input.setText(ruta)
+
+    def _examinar_carpeta(self):
+        ruta = QFileDialog.getExistingDirectory(self, "Seleccionar carpeta con PDFs")
+        if ruta:
+            self.carpeta_input.setText(ruta)
+
     def update_theme(self):
         self.color_normal = QColor(C["surface"])
         self.color_hover = QColor(C["overlay"])
@@ -611,7 +628,7 @@ class MenuCard(CardWidget):
 # ─── Pantalla principal (menú) ────────────────────────────────────────
 class PantallaMenu(QWidget):
 
-    def __init__(self, on_nuevo, on_actualizar, on_revisar, toggle_tema):
+    def __init__(self, on_nuevo=None, on_actualizar=None, on_revisar=None, toggle_tema=None):
         super().__init__()
         self.toggle_tema = toggle_tema
         root = QVBoxLayout(self)
@@ -641,11 +658,7 @@ class PantallaMenu(QWidget):
         header_row.addLayout(title_col)
         header_row.addStretch()
 
-        self.btn_tema = PushButton("Light" if current_theme == "light" else "Night")
-        self.btn_tema.setProperty("class", "ghost")
-        self.btn_tema.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_tema.clicked.connect(self.toggle_tema)
-        header_row.addWidget(self.btn_tema)
+
 
 
 
@@ -659,48 +672,54 @@ class PantallaMenu(QWidget):
         root.addWidget(self._divisor)
         root.addSpacing(22)
 
-        # Dashboard Overview Section
-        dash_lbl = make_label("Resumen del Sistema", size=14, weight=600)
+        # Controles Principales (Variables de Entorno)
+        dash_lbl = make_label("Variables de Entorno del Proyecto", size=14, weight=600)
         root.addWidget(dash_lbl)
         root.addSpacing(16)
 
-        stats_row = QHBoxLayout()
-        stats_row.setSpacing(16)
+        env_card = CardWidget()
+        env_layout = QFormLayout(env_card)
+        env_layout.setContentsMargins(20, 20, 20, 20)
+        env_layout.setSpacing(16)
 
-        # Stat Card 1
-        stat1 = CardWidget()
-        stat1.setFixedHeight(110)
-        stat1_layout = QVBoxLayout(stat1)
-        stat1_layout.addWidget(make_label("Estado del Sistema", size=11, css_class="text-muted"))
-        stat1_layout.addWidget(make_label("En línea", size=24, weight=700, css_class="text-success"))
-        stat1_layout.addWidget(make_label("Listo para procesar PDFs", size=10, css_class="text-muted-light"))
-        stats_row.addWidget(stat1)
+        # Plantilla Base
+        self.plantilla_input = LineEdit()
+        self.plantilla_input.setPlaceholderText("Ruta de la plantilla .xlsx")
+        self.plantilla_input.setText(config.obtener_ruta_plantilla())
+        self.plantilla_input.textChanged.connect(lambda t: config.guardar_ruta_plantilla(t))
+        btn_plantilla = PushButton("Examinar")
+        btn_plantilla.clicked.connect(self._examinar_plantilla)
 
-        # Stat Card 2
-        stat2 = CardWidget()
-        stat2.setFixedHeight(110)
-        stat2_layout = QVBoxLayout(stat2)
-        stat2_layout.addWidget(make_label("Plantilla Base", size=11, css_class="text-muted"))
+        plant_row = QHBoxLayout()
+        plant_row.addWidget(self.plantilla_input, stretch=1)
+        plant_row.addWidget(btn_plantilla)
+        env_layout.addRow(make_label("Plantilla Base:", size=12), plant_row)
 
-        has_template = bool(config.obtener_ruta_plantilla())
-        t_text = "Configurada" if has_template else "Faltante"
-        t_color = "text-success" if has_template else "text-warning"
+        # Carpeta PDFs
+        self.carpeta_input = LineEdit()
+        self.carpeta_input.setPlaceholderText("Carpeta con los PDFs")
+        self.carpeta_input.setText(config.obtener_carpeta_pdfs())
+        self.carpeta_input.textChanged.connect(lambda t: config.guardar_carpeta_pdfs(t))
+        btn_carpeta = PushButton("Examinar")
+        btn_carpeta.clicked.connect(self._examinar_carpeta)
 
-        stat2_layout.addWidget(make_label(t_text, size=24, weight=700, css_class=t_color))
-        stat2_layout.addWidget(make_label("Verifica 'Configuración' para cambiar", size=10, css_class="text-muted-light"))
-        stats_row.addWidget(stat2)
+        carp_row = QHBoxLayout()
+        carp_row.addWidget(self.carpeta_input, stretch=1)
+        carp_row.addWidget(btn_carpeta)
+        env_layout.addRow(make_label("Directorio PDFs:", size=12), carp_row)
 
-        # Stat Card 3
-        stat3 = CardWidget()
-        stat3.setFixedHeight(110)
-        stat3_layout = QVBoxLayout(stat3)
-        stat3_layout.addWidget(make_label("Reglas de Desviación", size=11, css_class="text-muted"))
-        stat3_layout.addWidget(make_label("Activas", size=24, weight=700, css_class="text-accent"))
-        stat3_layout.addWidget(make_label("Motor de revisión cargado", size=10, css_class="text-muted-light"))
-        stats_row.addWidget(stat3)
+        # Hora de Inicio
+        self.hora_input = LineEdit()
+        self.hora_input.setPlaceholderText("HH:MM")
+        self.hora_input.setText(config.obtener_hora_inicio())
+        self.hora_input.setFixedWidth(100)
+        # Validate format roughly before saving
+        self.hora_input.editingFinished.connect(self._guardar_hora)
 
-        root.addLayout(stats_row)
-        root.addSpacing(32)
+        env_layout.addRow(make_label("Hora de Inicio:", size=12), self.hora_input)
+
+        root.addWidget(env_card)
+        root.addSpacing(24)
 
         # Quick Guide Section
         guide_lbl = make_label("Guía Rápida", size=14, weight=600)
@@ -742,7 +761,38 @@ class PantallaMenu(QWidget):
         guide_layout.addLayout(row3)
 
         root.addWidget(guide_card)
-        root.addStretch()
+        root.addSpacing(24)
+
+        # Log de operaciones
+        log_lbl = make_label("Registro de Operaciones", size=14, weight=600)
+        root.addWidget(log_lbl)
+        root.addSpacing(12)
+
+        self.log_area = TextEdit()
+        self.log_area.setReadOnly(True)
+        self.log_area.setPlaceholderText("El registro general aparecerá aquí...")
+        self.log_area.setMinimumHeight(150)
+        root.addWidget(self.log_area, stretch=1)
+
+        # Don't need addStretch since TextEdit can stretch
+
+
+    def _guardar_hora(self):
+        try:
+            config.guardar_hora_inicio(self.hora_input.text())
+            self.hora_input.setStyleSheet("")
+        except ValueError:
+            self.hora_input.setStyleSheet("border: 1px solid red;")
+
+    def _examinar_plantilla(self):
+        ruta, _ = QFileDialog.getOpenFileName(self, "Seleccionar plantilla", "", "Excel (*.xlsx *.xlsm)")
+        if ruta:
+            self.plantilla_input.setText(ruta)
+
+    def _examinar_carpeta(self):
+        ruta = QFileDialog.getExistingDirectory(self, "Seleccionar carpeta con PDFs")
+        if ruta:
+            self.carpeta_input.setText(ruta)
 
     def update_theme(self):
         self.title.style().unpolish(self.title)
@@ -752,7 +802,6 @@ class PantallaMenu(QWidget):
         self._divisor.setStyleSheet(
             f"border: none; border-top: 1px solid {C['border_soft']};"
         )
-        self.btn_tema.setText("Light" if current_theme == "light" else "Night")
 
 # ─── Pantalla de flujo de trabajo ────────────────────────────────────
 class PantallaFlujo(QWidget):
@@ -871,188 +920,45 @@ class PantallaFlujo(QWidget):
         self._stats = {"procesados": 0, "desviaciones": None, "hojas": None}
 
     def _build_inputs(self, layout):
+        self.btn_existente = PushButton("Examinar...")
+        self.btn_existente.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_existente.clicked.connect(self._seleccionar_existente)
+        self.lbl_existente = make_label("No seleccionado", css_class="text-muted")
+
+        if e := config.obtener_ruta_existente():
+            self.lbl_existente.setText(os.path.basename(e))
+            self.lbl_existente.setToolTip(e)
+
+        def add_row(lbl_text, widget1, widget2=None):
+            row = QHBoxLayout()
+            row.addWidget(make_label(lbl_text, size=12, weight=600))
+            row.addSpacing(16)
+            row.addWidget(widget1)
+            if widget2:
+                row.addSpacing(12)
+                row.addWidget(widget2, stretch=1)
+            else:
+                row.addStretch()
+            layout.addLayout(row)
+
         if self.modo == "nuevo":
-            self.sel_plantilla = FileSelector(
-                "Plantilla Excel", mode="file",
-                valor_inicial=config.obtener_ruta_plantilla(),
-                on_select=config.guardar_ruta_plantilla
-            )
-            layout.addWidget(self.sel_plantilla)
-
-            row = QHBoxLayout()
-            row.setSpacing(12)
-            self.sel_carpeta = FileSelector(
-                "Carpeta de PDFs", mode="dir", filters="",
-                valor_inicial=config.obtener_carpeta_pdfs(),
-                on_select=config.guardar_carpeta_pdfs
-            )
-            row.addWidget(self.sel_carpeta, stretch=1)
-
-            hora_col = QVBoxLayout()
-            hora_col.setSpacing(6)
-            lbl_hora = make_label("Hora inicio (HH:MM)", size=10, css_class="text-soft")
-            hora_col.addWidget(lbl_hora)
-            self.hora_input = LineEdit()
-            self.hora_input.setPlaceholderText("ej. 19:50")
-            self.hora_input.setMaxLength(5)
-            self.hora_input.setFixedWidth(104)
-            self.hora_input.setText(config.obtener_hora_inicio())
-            self.hora_input.textChanged.connect(self._guardar_hora)
-            hora_col.addWidget(self.hora_input)
-            row.addLayout(hora_col)
-
-            layout.addLayout(row)
-
-
-            self.sel_salida = FileSelector(
-                "Guardar reporte como", mode="save",
-                filters="Excel (*.xlsx *.xlsm);;Todos (*)",
-                sugerir_nombre=self._sugerir_nombre_salida
-            )
-            layout.addWidget(self.sel_salida)
-
+            lbl_info = make_label("Modo Nuevo Reporte: Utiliza la 'Plantilla Base', 'Directorio PDFs' y 'Hora' definidos en el Inicio.", size=12)
+            lbl_info.setWordWrap(True)
+            layout.addWidget(lbl_info)
         elif self.modo == "actualizar":
-            self.sel_existente = FileSelector(
-                "Reporte Excel existente", mode="file",
-                valor_inicial=config.obtener_ruta_existente(),
-                on_select=config.guardar_ruta_existente
-            )
-            layout.addWidget(self.sel_existente)
+            add_row("1. Reporte a actualizar (.xlsx/.xlsm):", self.btn_existente, self.lbl_existente)
+            lbl_info = make_label("Nota: Utiliza el 'Directorio PDFs' y 'Hora' definidos en el Inicio.", size=11, css_class="text-muted")
+            lbl_info.setWordWrap(True)
+            layout.addWidget(lbl_info)
+        elif self.modo == "revisar":
+            add_row("1. Reporte a revisar (.xlsx/.xlsm):", self.btn_existente, self.lbl_existente)
 
-            self.sel_plantilla = FileSelector(
-                "Plantilla Excel (hoja en blanco)", mode="file",
-                valor_inicial=config.obtener_ruta_plantilla(),
-                on_select=config.guardar_ruta_plantilla
-            )
-            layout.addWidget(self.sel_plantilla)
-
-            row = QHBoxLayout()
-            row.setSpacing(12)
-            self.sel_carpeta = FileSelector(
-                "Carpeta con todos los PDFs", mode="dir", filters="",
-                valor_inicial=config.obtener_carpeta_pdfs(),
-                on_select=config.guardar_carpeta_pdfs
-            )
-            row.addWidget(self.sel_carpeta, stretch=1)
-
-            hora_col = QVBoxLayout()
-            hora_col.setSpacing(6)
-            lbl_hora2 = make_label("Hora inicio (HH:MM)", size=10, css_class="text-soft")
-            hora_col.addWidget(lbl_hora2)
-            self.hora_input = LineEdit()
-            self.hora_input.setPlaceholderText("ej. 19:50")
-            self.hora_input.setMaxLength(5)
-            self.hora_input.setFixedWidth(104)
-            self.hora_input.setText(config.obtener_hora_inicio())
-            self.hora_input.textChanged.connect(self._guardar_hora)
-            hora_col.addWidget(self.hora_input)
-            row.addLayout(hora_col)
-
-            layout.addLayout(row)
-
-
-        else:  # revisar
-            self.sel_excel = FileSelector(
-                "Reporte Excel a revisar", mode="file",
-                filters="Excel (*.xlsx *.xlsm);;Todos (*)",
-                valor_inicial=config.obtener_ruta_existente(),
-                on_select=config.guardar_ruta_existente
-            )
-            layout.addWidget(self.sel_excel)
-
-            self.chk_actualizar = CheckBox('Actualizar la hoja Desviaciones')
-            self.chk_actualizar.setCursor(Qt.CursorShape.PointingHandCursor)
-            self.chk_actualizar.toggled.connect(self._toggle_actualizar_in_situ)
-            layout.addWidget(self.chk_actualizar)
-
-            self.sel_salida = FileSelector(
-                "Guardar resultado como", mode="save",
-                filters="Excel (*.xlsx *.xlsm);;Todos (*)",
-                sugerir_nombre=self._sugerir_nombre_revision
-            )
-            layout.addWidget(self.sel_salida)
-
-            self.lbl_info_revisar = make_label(
-                'Si dejas la ruta vacía, se guarda junto al original con el sufijo "_Revisión desviaciones".',
-                size=11, css_class="text-muted")
-            self.lbl_info_revisar.setWordWrap(True)
-            layout.addWidget(self.lbl_info_revisar)
-
-    def _guardar_hora(self, texto):
-        texto = texto.strip()
-        if not texto:
-            return
-        try:
-            config.guardar_hora_inicio(texto)
-        except ValueError:
-            pass
-
-    def _toggle_actualizar_in_situ(self, checked):
-        self.sel_salida.setEnabled(not checked)
-        if checked:
-            self.lbl_info_revisar.setText('Se sobrescribirá la hoja "Desviaciones" en el archivo seleccionado '
-                                          'arriba (se reemplaza la anterior si ya existía).')
-        else:
-            self.lbl_info_revisar.setText('Si dejas la ruta vacía, se guarda junto al original con el '
-                                          'sufijo "_Revisión desviaciones".')
-
-    def _sugerir_nombre_salida(self):
-        ruta_plantilla = self.sel_plantilla.value()
-        if not ruta_plantilla:
-            return ""
-        base_nombre, ext = os.path.splitext(os.path.basename(ruta_plantilla))
-        ext_salida = ".xlsm" if ext.lower() in (".xlsm", ".xltm") else ".xlsx"
-        nombre = f"{base_nombre}{ext_salida}"
-        carpeta = self.sel_carpeta.value()
-        return os.path.join(carpeta, nombre) if carpeta else nombre
-
-    def _sugerir_nombre_revision(self):
-        ruta_excel = self.sel_excel.value()
-        if not ruta_excel:
-            return ""
-        base, ext = os.path.splitext(ruta_excel)
-        ext_salida = ".xlsm" if ext.lower() in (".xlsm", ".xltm") else ".xlsx"
-        return f"{base}_Revisión esterilizado{ext_salida}"
-
-    # ── Validación ──────────────────────────────────────────────────
-    def _validar(self):
-        errores = []
-        if self.modo == "revisar":
-            if not self.sel_excel.value():
-                errores.append(("Selecciona el reporte Excel a revisar", self.sel_excel.field))
-        else:
-            hora = self.hora_input.text().strip()
-            if not hora:
-                errores.append(("Ingresa la hora de inicio", self.hora_input))
-            else:
-                try:
-                    config.parsear_hora(hora)
-                except ValueError:
-                    errores.append(("Formato inválido. Usa HH:MM (ej. 08:30)", self.hora_input))
-
-            if self.modo == "nuevo":
-                for sel, nombre in [(self.sel_plantilla, "plantilla"),
-                                    (self.sel_carpeta, "carpeta de PDFs"),
-                                    (self.sel_salida, "ruta de salida")]:
-                    if not sel.value():
-                        errores.append((f"Selecciona la {nombre}", sel.field))
-            else:
-                for sel, nombre in [(self.sel_existente, "reporte existente"),
-                                    (self.sel_plantilla, "plantilla"),
-                                    (self.sel_carpeta, "carpeta de PDFs")]:
-                    if not sel.value():
-                        errores.append((f"Selecciona el/la {nombre}", sel.field))
-        if errores:
-            for msg, widget in errores:
-                original = widget.styleSheet()
-                widget.setStyleSheet(original + f" border-color: {C['error']};")
-                QTimer.singleShot(2000, lambda w=widget, orig=original: w.setStyleSheet(orig))
-            mensaje = "\n".join(msg for msg, _ in errores[:3])
-            if len(errores) > 3:
-                mensaje += f"\n...y {len(errores)-3} errores más."
-            show_toast(self, "Errores de validación", mensaje, "error")
-            return False
-        return True
+    def _seleccionar_existente(self):
+        ruta, _ = QFileDialog.getOpenFileName(self, "Seleccionar reporte existente", "", "Excel (*.xlsx *.xlsm)")
+        if ruta:
+            config.guardar_ruta_existente(ruta)
+            self.lbl_existente.setText(os.path.basename(ruta))
+            self.lbl_existente.setToolTip(ruta)
 
     def _ejecutar(self):
         if self._executing:
@@ -1211,6 +1117,8 @@ class PantallaFlujo(QWidget):
 
     def _log_msg(self, msg, color=None):
         c = color if color else C["text"]
+
+        # Log to local area
         doc = self.log_area.document()
         if doc.blockCount() > MAX_LOG_LINES:
             cursor = QTextCursor(doc.begin())
@@ -1218,15 +1126,27 @@ class PantallaFlujo(QWidget):
                 cursor.movePosition(QTextCursor.MoveOperation.Down, QTextCursor.MoveMode.KeepAnchor)
             cursor.removeSelectedText()
             cursor.movePosition(QTextCursor.MoveOperation.End)
-        # Escapar el texto: los mensajes de log (rutas, errores de Excel/COM)
-        # pueden contener '<', '>' o '&' que romperían el render HTML del QTextEdit
-        # o inyectarían marcado no deseado. Los espacios iniciales se preservan.
+
         seguro = html.escape(msg)
-        self.log_area.insertHtml(
-            f'<span style="color:{c}; font-family: Consolas, monospace; font-size:13px;">'
-            f'{seguro}</span><br>'
-        )
+        html_str = f'<span style="color:{c}; font-family: Consolas, monospace; font-size:13px;">{seguro}</span><br>'
+
+        self.log_area.insertHtml(html_str)
         self.log_area.moveCursor(QTextCursor.MoveOperation.End)
+
+        # Log to global dashboard area if possible
+        try:
+            menu_log = self.window().pantalla_menu.log_area
+            menu_doc = menu_log.document()
+            if menu_doc.blockCount() > MAX_LOG_LINES:
+                cursor = QTextCursor(menu_doc.begin())
+                for _ in range(menu_doc.blockCount() - MAX_LOG_LINES):
+                    cursor.movePosition(QTextCursor.MoveOperation.Down, QTextCursor.MoveMode.KeepAnchor)
+                cursor.removeSelectedText()
+                cursor.movePosition(QTextCursor.MoveOperation.End)
+            menu_log.insertHtml(f"<b>[{self.modo.upper()}]</b> {html_str}")
+            menu_log.moveCursor(QTextCursor.MoveOperation.End)
+        except Exception:
+            pass
 
     def _abrir_resultado(self):
         if self.ruta_resultado and os.path.exists(self.ruta_resultado):
@@ -1253,6 +1173,23 @@ class PantallaFlujo(QWidget):
         self.btn_cancelar.setText("Cancelar")
         self.ruta_resultado = None
 
+    def _guardar_hora(self):
+        try:
+            config.guardar_hora_inicio(self.hora_input.text())
+            self.hora_input.setStyleSheet("")
+        except ValueError:
+            self.hora_input.setStyleSheet("border: 1px solid red;")
+
+    def _examinar_plantilla(self):
+        ruta, _ = QFileDialog.getOpenFileName(self, "Seleccionar plantilla", "", "Excel (*.xlsx *.xlsm)")
+        if ruta:
+            self.plantilla_input.setText(ruta)
+
+    def _examinar_carpeta(self):
+        ruta = QFileDialog.getExistingDirectory(self, "Seleccionar carpeta con PDFs")
+        if ruta:
+            self.carpeta_input.setText(ruta)
+
     def update_theme(self):
         """Refresca los elementos con estilo embebido (no cubiertos por el
         stylesheet global) tras un cambio de tema: el divisor superior toma el
@@ -1266,9 +1203,8 @@ class PantallaFlujo(QWidget):
 
 # ─── Ventana principal ───────────────────────────────────────────────
 class VentanaPrincipal(FluentWindow):
-    def __init__(self, on_nuevo=None, on_actualizar=None, on_revisar=None, toggle_tema=None):
+    def __init__(self):
         super().__init__()
-        self.toggle_tema = toggle_tema
         self.setWindowTitle("Procesador de Esterilizado")
         self.setMinimumSize(720, 520)
         self.resize(720, 520)
