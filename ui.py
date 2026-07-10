@@ -626,12 +626,18 @@ class MenuCard(CardWidget):
         super().leaveEvent(event)
 
 # ─── Pantalla principal (menú) ────────────────────────────────────────
-class PantallaMenu(QWidget):
+class PantallaMenu(SmoothScrollArea):
 
     def __init__(self, on_nuevo=None, on_actualizar=None, on_revisar=None, toggle_tema=None):
         super().__init__()
         self.toggle_tema = toggle_tema
-        root = QVBoxLayout(self)
+        self.setWidgetResizable(True)
+        self.setStyleSheet("QScrollArea {background: transparent; border: none;}")
+
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+
+        root = QVBoxLayout(container)
         root.setContentsMargins(44, 38, 44, 36)
         root.setSpacing(0)
 
@@ -672,17 +678,21 @@ class PantallaMenu(QWidget):
         root.addWidget(self._divisor)
         root.addSpacing(22)
 
-        # Controles Principales (Variables de Entorno)
+        # Middle Layout: Variables y Guía lado a lado
+        middle_row = QHBoxLayout()
+        middle_row.setSpacing(24)
+
+        # --- COLUMNA IZQUIERDA: Variables de Entorno ---
+        col_izq = QVBoxLayout()
         dash_lbl = make_label("Variables de Entorno del Proyecto", size=14, weight=600)
-        root.addWidget(dash_lbl)
-        root.addSpacing(16)
+        col_izq.addWidget(dash_lbl)
+        col_izq.addSpacing(16)
 
         env_card = CardWidget()
         env_layout = QFormLayout(env_card)
         env_layout.setContentsMargins(20, 20, 20, 20)
         env_layout.setSpacing(16)
 
-        # Plantilla Base
         self.plantilla_input = LineEdit()
         self.plantilla_input.setPlaceholderText("Ruta de la plantilla .xlsx")
         self.plantilla_input.setText(config.obtener_ruta_plantilla())
@@ -695,7 +705,6 @@ class PantallaMenu(QWidget):
         plant_row.addWidget(btn_plantilla)
         env_layout.addRow(make_label("Plantilla Base:", size=12), plant_row)
 
-        # Carpeta PDFs
         self.carpeta_input = LineEdit()
         self.carpeta_input.setPlaceholderText("Carpeta con los PDFs")
         self.carpeta_input.setText(config.obtener_carpeta_pdfs())
@@ -708,30 +717,28 @@ class PantallaMenu(QWidget):
         carp_row.addWidget(btn_carpeta)
         env_layout.addRow(make_label("Directorio PDFs:", size=12), carp_row)
 
-        # Hora de Inicio
         self.hora_input = LineEdit()
         self.hora_input.setPlaceholderText("HH:MM")
         self.hora_input.setText(config.obtener_hora_inicio())
         self.hora_input.setFixedWidth(100)
-        # Validate format roughly before saving
         self.hora_input.editingFinished.connect(self._guardar_hora)
 
         env_layout.addRow(make_label("Hora de Inicio:", size=12), self.hora_input)
 
-        root.addWidget(env_card)
-        root.addSpacing(24)
+        col_izq.addWidget(env_card)
+        col_izq.addStretch()
 
-        # Quick Guide Section
+        # --- COLUMNA DERECHA: Guía Rápida ---
+        col_der = QVBoxLayout()
         guide_lbl = make_label("Guía Rápida", size=14, weight=600)
-        root.addWidget(guide_lbl)
-        root.addSpacing(12)
+        col_der.addWidget(guide_lbl)
+        col_der.addSpacing(12)
 
         guide_card = CardWidget()
         guide_layout = QVBoxLayout(guide_card)
         guide_layout.setContentsMargins(20, 20, 20, 20)
         guide_layout.setSpacing(12)
 
-        # Now using the callbacks dynamically!
         btn_nuevo = PushButton("Nuevo Reporte")
         if on_nuevo: btn_nuevo.clicked.connect(on_nuevo)
 
@@ -741,26 +748,24 @@ class PantallaMenu(QWidget):
         btn_rev = PushButton("Revisar Desviaciones")
         if on_revisar: btn_rev.clicked.connect(on_revisar)
 
-        row1 = QHBoxLayout()
-        row1.addWidget(make_label("1. Genera un Excel en blanco basado en la plantilla.", size=12))
-        row1.addStretch()
-        row1.addWidget(btn_nuevo)
+        def add_guide_row(texto, btn):
+            r = QHBoxLayout()
+            r.addWidget(make_label(texto, size=11))
+            r.addStretch()
+            r.addWidget(btn)
+            guide_layout.addLayout(r)
 
-        row2 = QHBoxLayout()
-        row2.addWidget(make_label("2. Añade nuevos ciclos a un archivo existente.", size=12))
-        row2.addStretch()
-        row2.addWidget(btn_act)
+        add_guide_row("1. Genera un Excel en blanco desde plantilla.", btn_nuevo)
+        add_guide_row("2. Añade ciclos a un archivo existente.", btn_act)
+        add_guide_row("3. Detecta parámetros fuera de rango.", btn_rev)
 
-        row3 = QHBoxLayout()
-        row3.addWidget(make_label("3. Detecta parámetros fuera de rango en el Excel.", size=12))
-        row3.addStretch()
-        row3.addWidget(btn_rev)
+        col_der.addWidget(guide_card)
+        col_der.addStretch()
 
-        guide_layout.addLayout(row1)
-        guide_layout.addLayout(row2)
-        guide_layout.addLayout(row3)
+        middle_row.addLayout(col_izq, stretch=3)
+        middle_row.addLayout(col_der, stretch=2)
 
-        root.addWidget(guide_card)
+        root.addLayout(middle_row)
         root.addSpacing(24)
 
         # Log de operaciones
@@ -774,7 +779,7 @@ class PantallaMenu(QWidget):
         self.log_area.setMinimumHeight(150)
         root.addWidget(self.log_area, stretch=1)
 
-        # Don't need addStretch since TextEdit can stretch
+        self.setWidget(container)
 
 
     def _guardar_hora(self):
@@ -963,39 +968,52 @@ class PantallaFlujo(QWidget):
     def _ejecutar(self):
         if self._executing:
             return
-        if not self._validar():
-            return
 
-        try:
-            config.guardar_hora_inicio(self.hora_input.text().strip())
-        except ValueError:
-            pass
+        # Validación leyendo desde config
+        if self.modo in ("nuevo", "actualizar"):
+            hora_raw = config.obtener_hora_inicio()
+            if not hora_raw:
+                show_toast(self, "Error de hora", "Define una hora de inicio (HH:MM) en el panel principal.", "error")
+                return
+            if not config.obtener_carpeta_pdfs():
+                show_toast(self, "Falta dato", "Selecciona el directorio de PDFs en el panel principal.", "warning")
+                return
+
+        if self.modo == "nuevo":
+            if not config.obtener_ruta_plantilla():
+                show_toast(self, "Falta dato", "Selecciona la plantilla base en el panel principal.", "warning")
+                return
+        elif self.modo in ("actualizar", "revisar"):
+            if not config.obtener_ruta_existente():
+                show_toast(self, "Falta dato", "Selecciona el reporte existente a procesar en el panel principal.", "warning")
+                return
 
         if self.modo == "revisar":
-            actualizar_in_situ = self.chk_actualizar.isChecked()
-            ruta_salida = (self.sel_excel.value() if actualizar_in_situ else (self.sel_salida.value() or None))
+            # For revisar we just need the input excel. We can optionally allow a custom output path,
+            # but currently we stripped those out to simplify to Windows 11 style.
+            # We'll just pass None for ruta_salida so it uses default naming.
             params = {
-                "ruta_excel": self.sel_excel.value(),
-                "ruta_salida": ruta_salida,
-                "actualizar_in_situ": actualizar_in_situ,
+                "ruta_excel": config.obtener_ruta_existente(),
+                "ruta_salida": None,
+                "actualizar_in_situ": False,
             }
         else:
-            hora_raw = self.hora_input.text().strip().replace('.', ':')
+            hora_raw = config.obtener_hora_inicio()
             palabras_descarte = config.obtener_palabras_descarte()
             if self.modo == "nuevo":
                 params = {
-                    "ruta_plantilla": self.sel_plantilla.value(),
+                    "ruta_plantilla": config.obtener_ruta_plantilla(),
                     "hora_inicio": hora_raw,
-                    "carpeta_pdfs": self.sel_carpeta.value(),
-                    "ruta_salida": self.sel_salida.value(),
+                    "carpeta_pdfs": config.obtener_carpeta_pdfs(),
+                    "ruta_salida": None, # Will use default naming
                     "palabras_descarte": palabras_descarte,
                 }
             else:
                 params = {
-                    "ruta_existente": self.sel_existente.value(),
-                    "ruta_plantilla": self.sel_plantilla.value(),
+                    "ruta_existente": config.obtener_ruta_existente(),
+                    "ruta_plantilla": config.obtener_ruta_plantilla(),
                     "hora_inicio": hora_raw,
-                    "carpeta_pdfs": self.sel_carpeta.value(),
+                    "carpeta_pdfs": config.obtener_carpeta_pdfs(),
                     "palabras_descarte": palabras_descarte,
                 }
 
