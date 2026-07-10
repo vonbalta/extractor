@@ -1469,7 +1469,8 @@ class PantallaConfiguracion(SmoothScrollArea):
         for k, label_text, tooltip in campos_prm:
             inp = LineEdit()
             inp.setText(str(parametros.get(k, "")))
-            inp.setFixedWidth(100)
+            inp.setMinimumWidth(80)
+            inp.setMaximumWidth(150)
             self.inputs_params[k] = inp
 
             lbl_widget = QWidget()
@@ -1526,15 +1527,51 @@ class PantallaConfiguracion(SmoothScrollArea):
         c_textos_layout.addLayout(textos_layout)
         self.expandLayout.addWidget(self.card_textos)
 
-        # Botón de guardado general
+        # Botones de acción
+        btn_layout = QHBoxLayout()
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+
         self.btn_guardar = PrimaryPushButton("Guardar Cambios")
         self.btn_guardar.setFixedWidth(160)
         self.btn_guardar.clicked.connect(self.guardar_cambios)
 
+        self.btn_restablecer = PushButton("Restablecer Valores por Defecto")
+        self.btn_restablecer.setFixedWidth(240)
+        self.btn_restablecer.clicked.connect(self.restablecer_valores)
+
+        btn_layout.addWidget(self.btn_guardar)
+        btn_layout.addSpacing(12)
+        btn_layout.addWidget(self.btn_restablecer)
+        btn_layout.addStretch()
+
         self.expandLayout.addSpacing(16)
-        self.expandLayout.addWidget(self.btn_guardar)
+        self.expandLayout.addLayout(btn_layout)
 
         self.setWidget(container)
+
+    def restablecer_valores(self):
+        config.restablecer_configuracion()
+
+        # Recargar UI con defaults
+        self.descarte_input.setText(config.obtener_palabras_descarte_texto())
+
+        parametros = config.obtener_parametros_criticos()
+        for k, inp in self.inputs_params.items():
+            inp.setText(str(parametros.get(k, "")))
+
+        plantillas = config.obtener_plantillas_textos()
+        for k, inp in self.inputs_texto.items():
+            inp.setText(plantillas.get(k, ""))
+
+        InfoBar.success(
+            title='Valores restablecidos',
+            content="La configuración ha vuelto a sus valores por defecto originales.",
+            orient=Qt.Orientation.Horizontal,
+            isClosable=True,
+            position=InfoBarPosition.TOP_RIGHT,
+            duration=3000,
+            parent=self.window()
+        )
 
     def guardar_cambios(self):
         config.guardar_palabras_descarte(self.descarte_input.text())
@@ -1554,3 +1591,5 @@ class PantallaConfiguracion(SmoothScrollArea):
             duration=3000,
             parent=self.window()
         )
+if __name__ == '__main__':
+    main()

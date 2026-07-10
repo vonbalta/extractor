@@ -301,3 +301,25 @@ def guardar_parametros_criticos(params_nuevos):
                 pass
     if validos:
         guardar_config(validos)
+
+# ---------------------------------------------------------------------------
+#  RESTABLECER VALORES POR DEFECTO
+# ---------------------------------------------------------------------------
+
+def restablecer_configuracion():
+    ruta = _ruta_archivo_config()
+    try:
+        ruta_dir = os.path.dirname(ruta) or "."
+        fd, ruta_tmp = tempfile.mkstemp(suffix=".json", dir=ruta_dir)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(dict(_DEFAULTS), f, indent=2, ensure_ascii=False)
+            os.replace(ruta_tmp, ruta)
+        except Exception:
+            try:
+                os.remove(ruta_tmp)
+            except OSError:
+                pass
+            raise
+    except Exception as exc:
+        raise RuntimeError(f"No se pudo restablecer la configuración en {ruta}: {exc}") from exc
