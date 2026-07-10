@@ -36,6 +36,7 @@ _DEFAULTS = {
     "palabras_descarte": list(_PALABRAS_DESCARTE_DEFAULT),
     "param_temp_critica_f4": 122.5,
     "param_dif_temp_max": 1.0,
+    "param_dif_temp_min": -0.1,
     "param_presion_min_f3": 1.6,
     "param_presion_min_f4": 1.5,
     "param_caudal_min_123": 230.0,

@@ -1287,7 +1287,7 @@ class VentanaPrincipal(FluentWindow):
         self.pantalla_revisar = PantallaFlujo("revisar", on_volver=lambda: self.switchTo(self.pantalla_menu))
         self.pantalla_revisar.setObjectName("PantallaRevisar")
 
-        self.pantalla_config = PantallaConfiguracion()
+        self.pantalla_config = PantallaConfiguracion(toggle_tema_fn=self.alternar_tema)
 
         self.addSubInterface(self.pantalla_menu, FluentIcon.HOME, 'Inicio')
         self.addSubInterface(self.pantalla_nuevo, FluentIcon.ADD, 'Nuevo Reporte')
@@ -1390,121 +1390,80 @@ def main():
 
 class PantallaConfiguracion(SmoothScrollArea):
     """Pantalla para ajustes globales de la aplicación."""
-    def __init__(self):
+    def __init__(self, toggle_tema_fn=None):
         super().__init__()
         self.setObjectName("PantallaConfiguracion")
         self.setWidgetResizable(True)
         self.setStyleSheet("QScrollArea {background: transparent; border: none;}")
+        self.toggle_tema_fn = toggle_tema_fn
 
         container = QWidget()
         container.setStyleSheet("background: transparent;")
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(44, 38, 44, 36)
-        layout.setSpacing(24)
+
+        # We use an QVBoxLayout to hold collapsible cards
+        self.expandLayout = QVBoxLayout(container)
+        self.expandLayout.setContentsMargins(44, 38, 44, 36)
+        self.expandLayout.setSpacing(24)
 
         titulo = make_label("Configuración", size=24, weight=700)
-        layout.addWidget(titulo)
+        self.expandLayout.addWidget(titulo)
 
-        card_filtros = CardWidget()
-        cf_layout = QVBoxLayout(card_filtros)
-        cf_layout.setContentsMargins(24, 24, 24, 24)
-        cf_layout.setSpacing(16)
+        # 1. Ajustes de Tema
+        self.card_tema = CardWidget()
+        tema_layout = QVBoxLayout(self.card_tema)
+        tema_layout.setContentsMargins(24, 24, 24, 24)
+        tema_layout.addWidget(make_label("Apariencia y Tema", size=14, weight=600))
+        tema_layout.addWidget(make_label("Configura el modo oscuro o claro de la aplicación", size=11, css_class="text-muted"))
 
-        lbl_desc = make_label("Palabras a descartar en nombres de PDF", size=14, weight=600)
-        lbl_sub = make_label("Separadas por coma, sin espacios extra.", size=11, css_class="text-muted")
+        self.btn_tema = PushButton("Cambiar Tema")
+        self.btn_tema.setFixedWidth(160)
+        self.btn_tema.setCursor(Qt.CursorShape.PointingHandCursor)
+        if self.toggle_tema_fn:
+            self.btn_tema.clicked.connect(self.toggle_tema_fn)
+        tema_layout.addSpacing(8)
+        tema_layout.addWidget(self.btn_tema)
+
+        self.expandLayout.addWidget(self.card_tema)
+
+        # 2. Descarte de PDFs
+        self.card_filtros = CardWidget()
+        filtros_layout = QVBoxLayout(self.card_filtros)
+        filtros_layout.setContentsMargins(24, 24, 24, 24)
+        filtros_layout.addWidget(make_label("Filtros de PDFs", size=14, weight=600))
+        filtros_layout.addWidget(make_label("Palabras a descartar en nombres de PDF (separadas por coma)", size=11, css_class="text-muted"))
 
         self.descarte_input = LineEdit()
         self.descarte_input.setText(config.obtener_palabras_descarte_texto())
         self.descarte_input.setPlaceholderText("ej. prueba, limpieza, xxx")
 
-        cf_layout.addWidget(lbl_desc)
-        cf_layout.addWidget(lbl_sub)
-        cf_layout.addSpacing(8)
-        cf_layout.addWidget(self.descarte_input)
-        layout.addWidget(card_filtros)
+        filtros_layout.addSpacing(8)
+        filtros_layout.addWidget(self.descarte_input)
 
-        card_textos = CardWidget()
-        ct_layout = QVBoxLayout(card_textos)
-        ct_layout.setContentsMargins(24, 24, 24, 24)
-        ct_layout.setSpacing(16)
+        self.expandLayout.addWidget(self.card_filtros)
 
-        lbl_txt = make_label("Textos de Desviaciones", size=14, weight=600)
-        lbl_txt_sub = make_label("Personaliza los textos generados. Variables permitidas: {nombre_fase}, {r_txt}, {d_txt}, {c_txt}", size=11, css_class="text-muted")
-        ct_layout.addWidget(lbl_txt)
-        ct_layout.addWidget(lbl_txt_sub)
-        ct_layout.addSpacing(8)
+        # 3. Parámetros Críticos
+        self.card_params = CardWidget()
+        c_params_layout = QVBoxLayout(self.card_params)
+        c_params_layout.setContentsMargins(24, 24, 24, 24)
+        c_params_layout.addWidget(make_label("Parámetros Críticos y Umbrales", size=14, weight=600))
+        c_params_layout.addWidget(make_label("Modifica los valores numéricos bajo los cuales se disparan las desviaciones", size=11, css_class="text-muted"))
+        c_params_layout.addSpacing(8)
 
-        self.inputs_texto = {}
-        plantillas = config.obtener_plantillas_textos()
-
-        campos = [
-            ("txt_hdr_n_alto", "Temp Registrador > Digital (>1°C) [Header]"),
-            ("txt_ora_n_alto", "Temp Registrador > Digital (>1°C) [Oración]"),
-            ("txt_hdr_n_bajo", "Temp Registrador < Digital [Header]"),
-            ("txt_ora_n_bajo", "Temp Registrador < Digital [Oración]"),
-            ("txt_hdr_r_alto", "Temp Registrador > Controlador (>1°C) [Header]"),
-            ("txt_ora_r_alto", "Temp Registrador > Controlador (>1°C) [Oración]"),
-            ("txt_hdr_r_bajo", "Temp Registrador < Controlador [Header]"),
-            ("txt_ora_r_bajo", "Temp Registrador < Controlador [Oración]"),
-            ("txt_hdr_reg_crit", "Temp Registrador Crítica (Holding) [Header]"),
-            ("txt_ora_reg_crit", "Temp Registrador Crítica (Holding) [Oración]"),
-            ("txt_hdr_dig_crit", "Temp Digital Crítica (Holding) [Header]"),
-            ("txt_ora_dig_crit", "Temp Digital Crítica (Holding) [Oración]"),
-            ("txt_bar_f3", "Presión Fase 3 (<1.6 Bar)"),
-            ("txt_bar_f4", "Presión Fase 4 (<1.5 Bar)"),
-            ("txt_caudal_123", "Caudal Fases 1,2,3 (<230 m3/h)"),
-            ("txt_caudal_4", "Caudal Fase 4 (<210 m3/h)"),
-        ]
-
-        form_layout = QFormLayout()
-        form_layout.setSpacing(12)
-
-        for k, label in campos:
-            inp = LineEdit()
-            inp.setText(plantillas.get(k, ""))
-            self.inputs_texto[k] = inp
-            form_layout.addRow(make_label(label, size=12), inp)
-
-        ct_layout.addLayout(form_layout)
-        layout.addWidget(card_textos)
-
-        # Card de Parámetros Críticos (Numéricos)
-        card_params = CardWidget()
-        cp_layout = QVBoxLayout(card_params)
-        cp_layout.setContentsMargins(24, 24, 24, 24)
-        cp_layout.setSpacing(16)
-
-        lbl_prm = make_label("Parámetros Críticos y Umbrales", size=14, weight=600)
-        lbl_prm_sub = make_label("Modifica los valores numéricos bajo los cuales se disparan las desviaciones.", size=11, css_class="text-muted")
-        cp_layout.addWidget(lbl_prm)
-        cp_layout.addWidget(lbl_prm_sub)
-        cp_layout.addSpacing(8)
+        params_layout = QFormLayout()
+        params_layout.setSpacing(12)
 
         self.inputs_params = {}
         parametros = config.obtener_parametros_criticos()
 
         campos_prm = [
-            ("param_temp_critica_f4", "Temperatura crítica en Holding (°C)",
-             "Si la temperatura en Fase 4 (Holding) cae por debajo de este valor, se registrará una desviación crítica."),
-
-            ("param_dif_temp_max", "Diferencial de temp. máximo permitido (°C)",
-             "Diferencia máxima permitida entre los sensores (ej. Registrador vs Controlador). Usualmente 1.0 °C."),
-
-            ("param_presion_min_f3", "Presión mínima en Fase 3 (Bar)",
-             "Umbral de presión mínima para la Fase 3 de calentamiento."),
-
-            ("param_presion_min_f4", "Presión mínima en Fase 4 (Bar)",
-             "Umbral de presión mínima exigida durante la Fase 4 (Holding)."),
-
-            ("param_caudal_min_123", "Caudal mínimo Fases 1,2,3 (m3/h)",
-             "Límite crítico de caudal de agua aplicable a las fases iniciales de calentamiento."),
-
-            ("param_caudal_min_4", "Caudal mínimo Fase 4 (m3/h)",
-             "Límite crítico de caudal de agua durante la Fase 4 (Holding)."),
+            ("param_temp_critica_f4", "Temp. crítica Holding (°C)", "Desviación si temp < valor"),
+            ("param_dif_temp_max", "Dif. máximo temp. (°C)", "Diferencia > valor"),
+            ("param_dif_temp_min", "Dif. mínimo temp. (°C)", "Diferencia <= valor (usar negativos)"),
+            ("param_presion_min_f3", "Presión mín. Fase 3 (Bar)", "Límite calentamiento"),
+            ("param_presion_min_f4", "Presión mín. Fase 4 (Bar)", "Límite holding"),
+            ("param_caudal_min_123", "Caudal mín. Fases 1,2,3 (m3/h)", "Límite calentamiento"),
+            ("param_caudal_min_4", "Caudal mín. Fase 4 (m3/h)", "Límite holding"),
         ]
-
-        form_params = QFormLayout()
-        form_params.setSpacing(12)
 
         for k, label_text, tooltip in campos_prm:
             inp = LineEdit()
@@ -1517,24 +1476,62 @@ class PantallaConfiguracion(SmoothScrollArea):
             lbl_layout.setContentsMargins(0, 0, 0, 0)
             lbl_layout.setSpacing(2)
 
-            title_lbl = make_label(label_text, size=12)
-            desc_lbl = make_label(tooltip, size=10, css_class="text-muted")
+            lbl_layout.addWidget(make_label(label_text, size=12))
+            lbl_layout.addWidget(make_label(tooltip, size=10, css_class="text-muted"))
+            params_layout.addRow(lbl_widget, inp)
 
-            lbl_layout.addWidget(title_lbl)
-            lbl_layout.addWidget(desc_lbl)
+        c_params_layout.addLayout(params_layout)
+        self.expandLayout.addWidget(self.card_params)
 
-            form_params.addRow(lbl_widget, inp)
+        # 4. Textos de Desviaciones
+        self.card_textos = CardWidget()
+        c_textos_layout = QVBoxLayout(self.card_textos)
+        c_textos_layout.setContentsMargins(24, 24, 24, 24)
+        c_textos_layout.addWidget(make_label("Plantillas de Textos", size=14, weight=600))
+        c_textos_layout.addWidget(make_label("Personaliza los textos generados en el reporte", size=11, css_class="text-muted"))
+        c_textos_layout.addSpacing(8)
 
-        cp_layout.addLayout(form_params)
-        layout.addWidget(card_params)
+        textos_layout = QFormLayout()
+        textos_layout.setSpacing(12)
 
+        self.inputs_texto = {}
+        plantillas = config.obtener_plantillas_textos()
+
+        campos_txt = [
+            ("txt_hdr_n_alto", "Temp Registrador > Digital (> Max) [Header]"),
+            ("txt_ora_n_alto", "Temp Registrador > Digital (> Max) [Oración]"),
+            ("txt_hdr_n_bajo", "Temp Registrador < Digital (< Min) [Header]"),
+            ("txt_ora_n_bajo", "Temp Registrador < Digital (< Min) [Oración]"),
+            ("txt_hdr_r_alto", "Temp Registrador > Controlador (> Max) [Header]"),
+            ("txt_ora_r_alto", "Temp Registrador > Controlador (> Max) [Oración]"),
+            ("txt_hdr_r_bajo", "Temp Registrador < Controlador (< Min) [Header]"),
+            ("txt_ora_r_bajo", "Temp Registrador < Controlador (< Min) [Oración]"),
+            ("txt_hdr_reg_crit", "Temp Registrador Crítica (Holding) [Header]"),
+            ("txt_ora_reg_crit", "Temp Registrador Crítica (Holding) [Oración]"),
+            ("txt_hdr_dig_crit", "Temp Digital Crítica (Holding) [Header]"),
+            ("txt_ora_dig_crit", "Temp Digital Crítica (Holding) [Oración]"),
+            ("txt_bar_f3", "Presión Fase 3"),
+            ("txt_bar_f4", "Presión Fase 4"),
+            ("txt_caudal_123", "Caudal Fases 1,2,3"),
+            ("txt_caudal_4", "Caudal Fase 4"),
+        ]
+
+        for k, label in campos_txt:
+            inp = LineEdit()
+            inp.setText(plantillas.get(k, ""))
+            self.inputs_texto[k] = inp
+            textos_layout.addRow(make_label(label, size=11), inp)
+
+        c_textos_layout.addLayout(textos_layout)
+        self.expandLayout.addWidget(self.card_textos)
+
+        # Botón de guardado general
         self.btn_guardar = PrimaryPushButton("Guardar Cambios")
         self.btn_guardar.setFixedWidth(160)
         self.btn_guardar.clicked.connect(self.guardar_cambios)
 
-        layout.addSpacing(16)
-        layout.addWidget(self.btn_guardar)
-        layout.addStretch()
+        self.expandLayout.addSpacing(16)
+        self.expandLayout.addWidget(self.btn_guardar)
 
         self.setWidget(container)
 
@@ -1556,6 +1553,3 @@ class PantallaConfiguracion(SmoothScrollArea):
             duration=3000,
             parent=self.window()
         )
-
-if __name__ == "__main__":
-    main()

@@ -211,6 +211,7 @@ def evaluar_hoja(df):
     params = config.obtener_parametros_criticos()
     _T_CRIT = params.get("param_temp_critica_f4", 122.5)
     _DIF_MAX = params.get("param_dif_temp_max", 1.0)
+    _DIF_MIN = params.get("param_dif_temp_min", -0.1)
     _P_MIN_F3 = params.get("param_presion_min_f3", 1.6)
     _P_MIN_F4 = params.get("param_presion_min_f4", 1.5)
     _C_MIN_123 = params.get("param_caudal_min_123", 230.0)
@@ -240,10 +241,10 @@ def evaluar_hoja(df):
 
     # ── Máscaras booleanas por regla ────────────────────────────────────────
 
-    mask_n_alto  = m_no_vacio & n.notna() & (n > 1)
-    mask_n_bajo  = m_no_vacio & n.notna() & (n <= -0.1)
-    mask_r_alto  = m_no_vacio & r.notna() & (r > 1)
-    mask_r_bajo  = m_no_vacio & r.notna() & (r <= -0.1)
+    mask_n_alto  = m_no_vacio & n.notna() & (n > _DIF_MAX)
+    mask_n_bajo  = m_no_vacio & n.notna() & (n <= _DIF_MIN)
+    mask_r_alto  = m_no_vacio & r.notna() & (r > _DIF_MAX)
+    mask_r_bajo  = m_no_vacio & r.notna() & (r <= _DIF_MIN)
 
     mask_bar_f3 = e_bar.notna() & (fase == 3) & (e_bar < _P_MIN_F3)
     mask_bar_f4 = e_bar.notna() & (fase == 4) & (e_bar < _P_MIN_F4)
