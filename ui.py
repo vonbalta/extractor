@@ -714,13 +714,13 @@ class PantallaMenu(QWidget):
 
         # Now using the callbacks dynamically!
         btn_nuevo = PushButton("Nuevo Reporte")
-        btn_nuevo.clicked.connect(on_nuevo)
+        if on_nuevo: btn_nuevo.clicked.connect(on_nuevo)
 
         btn_act = PushButton("Actualizar Reporte")
-        btn_act.clicked.connect(on_actualizar)
+        if on_actualizar: btn_act.clicked.connect(on_actualizar)
 
         btn_rev = PushButton("Revisar Desviaciones")
-        btn_rev.clicked.connect(on_revisar)
+        if on_revisar: btn_rev.clicked.connect(on_revisar)
 
         row1 = QHBoxLayout()
         row1.addWidget(make_label("1. Genera un Excel en blanco basado en la plantilla.", size=12))
@@ -1266,8 +1266,9 @@ class PantallaFlujo(QWidget):
 
 # ─── Ventana principal ───────────────────────────────────────────────
 class VentanaPrincipal(FluentWindow):
-    def __init__(self):
+    def __init__(self, on_nuevo=None, on_actualizar=None, on_revisar=None, toggle_tema=None):
         super().__init__()
+        self.toggle_tema = toggle_tema
         self.setWindowTitle("Procesador de Esterilizado")
         self.setMinimumSize(720, 520)
         self.resize(720, 520)
